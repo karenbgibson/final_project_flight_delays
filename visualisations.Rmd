@@ -13,25 +13,132 @@ They believe poor weather conditions are causing too many delays and want to inv
 
 They also want to understand how they compare to other New York airports.
 
+*Plan*
+
+Newark only first, then all three airports:
+- What factors show a correlation with flight delay or cancellation? Check the following:
+  - type of plane
+  - carrier
+  - destination
+  - time of year
+  - no of flights in day
+- Which of correlated factors are weather related?
+
 ```{r}
 library(tidyverse)
 library(here)
+library(lubridate)
+library(tsibbledata)
+library(tsibble)
 ```
 
 ```{r}
-flight_weather_plane <- read_csv("clean_data/flight_weather_plane.csv")
+all_info <- read_csv("clean_data/all_info_clean.csv")
+newark_info <- read_csv("clean_data/newark_info.csv")
+
 ```
 
 ```{r}
-flight_weather_plane %>% 
+all_info %>% 
   filter(status != "on time") %>% 
   ggplot(aes(x = origin, fill = status)) +
   geom_bar(position = "dodge")
 ```
 
 ```{r}
-flight_weather_plane %>% 
+delayed_timeseries <- all_info %>% 
   filter(status == "delayed") %>% 
-  ggplot(aes(x = date, group = origin, colour = origin)) +
-  geom_line()
+  group_by(origin, year, month) %>% 
+  count(month)
 ```
+
+```{r}
+(delayed_timeseries_plot <- delayed_timeseries %>% 
+    ggplot(aes(x = month, y = n, 
+               group = origin, colour = origin)) +
+    geom_point() +
+    geom_line()
+)
+```
+
+```{r}
+ontime_timeseries <- all_info %>% 
+  filter(status == "on time") %>% 
+  group_by(origin, year, month) %>% 
+  count(month)
+```
+
+```{r}
+(ontime_timeseries_plot <- ontime_timeseries %>% 
+    ggplot(aes(x = month, y = n, 
+               group = origin, colour = origin)) +
+    geom_point() +
+    geom_line()
+)
+```
+
+```{r}
+cancelled_timeseries <- all_info %>% 
+  filter(status == "cancelled") %>% 
+  group_by(origin, year, month) %>% 
+  count(month)
+```
+
+```{r}
+(cancelled_timeseries_plot <- cancelled_timeseries %>% 
+    ggplot(aes(x = month, y = n, 
+               group = origin, colour = origin)) +
+    geom_point() +
+    geom_line()
+)
+```
+```{r}
+all_info %>% 
+  filter(status == "delayed",
+         origin == "EWR") %>% 
+  ggplot(aes(x = carrier, fill = carrier_name)) +
+  geom_bar(position = "dodge")
+```
+
+```{r}
+all_info %>% 
+  group_by(origin, carrier_name) %>% 
+  summarise(total_flights = n()) %>% 
+  mutate(percent_flights = 
+           total_flights / sum(total_flights) * 100)
+```
+*Highlighting as potentially plot for slides**
+
+```{r}
+status_percentage <- all_info %>% 
+  group_by(origin, status) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent = round(n/sum(n)*100, 2))
+```
+```{r}
+status_percentage %>% 
+  ggplot(aes(x = origin, y = percent, fill = status)) +
+  geom_col(position = "dodge")
+```
+```{r}
+delays_by_time <- newark_info %>%
+  group_by(hour, status) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent = round(n / sum(n) * 100))
+```
+```{r}
+newark_info %>% 
+  ggplot(aes(x = hour, fill = status)) +
+  geom_bar() +
+  facet_wrap(. ~ status)
+```
+```{r}
+all_info %>% 
+  group_by(origin) %>% 
+  ggplot(aes(x = hour, fill = status, group = origin)) +
+  geom_bar() +
+  facet_wrap(. ~ status)
+```
+Add weekday?
+
+

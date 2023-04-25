@@ -19,8 +19,7 @@ flights_clean <- flights %>%
   # removing arrival data and other unnecessary variables
   select(-c(arr_time, sched_arr_time, 
             arr_delay, air_time, 
-            distance,
-            hour, minute)) %>% 
+            minute)) %>% 
   # adding date variable
   mutate(date = make_datetime(year, month, day)) %>% 
   # mutating departure variables to datetime
@@ -53,7 +52,22 @@ dep_time = as_hms(as.POSIXct(dep_time))
     is.na(dep_time) ~ "cancelled",
     dep_delay >= 15 ~ "delayed",
     dep_delay < 15 ~ "on time",
-    TRUE ~ "unknown")) 
+    TRUE ~ "unknown")) %>% 
+  # mutating month value to words for data viz
+  mutate(month = case_when(
+    month == 1 ~ "Jan",
+    month == 2 ~ "Feb",
+    month == 3 ~"Mar",
+    month == 4 ~ "Apr",
+    month == 5 ~ "May",
+    month == 6 ~ "Jun",
+    month == 7 ~ "Jul",
+    month == 8 ~ "Aug",
+    month == 9 ~ "Sep",
+    month == 10 ~ "Oct",
+    month == 11 ~ "Nov",
+    month == 12 ~ "Dec",
+  ))
 
 # Weather cleaning data ------------------------------------
 weather_clean <- weather %>% 
@@ -86,7 +100,7 @@ flight_weather <- flights_clean %>%
   drop_na(wind_gust) 
 
 # Joining plane data ------------------------------------------------------
-flight_weather_plane <- flight_weather %>% 
+all_info <- flight_weather %>% 
   left_join(planes_clean, by = "tailnum") %>% 
   # imputing NA values
   mutate(tailnum = if_else(
@@ -103,7 +117,11 @@ flight_weather_plane <- flight_weather %>%
     is.na(engines), "unknown", as.character(engines)))
 
 
-# Saving clean data script ------------------------------------------------
+# Saving clean data scripts ------------------------------------------------
 
-flight_weather_plane %>% 
-  write_csv(here("clean_data/flight_weather_plane.csv"))
+all_info %>% 
+  write_csv(here("clean_data/all_info_clean.csv"))
+
+all_info %>% 
+  filter(origin == "EWR") %>% 
+  write_csv(here("clean_data/newark_info.csv"))
