@@ -1,0 +1,143 @@
+---
+title: "Weather data exploration"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(here)
+```
+
+```{r}
+source(here("data_cleaning_scripts/flight_delays.R"))
+```
+
+```{r}
+weather %>% 
+  summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    ))
+```
+Temp, dewp, humid, precip, pressure all have significant number of missing values. Dropping these from the dataset. 
+
+```{r}
+weather_clean <- weather %>% 
+  select(-c(year, month, day, hour, temp, 
+            dewp, humid, precip, pressure))
+```
+
+```{r}
+weather_clean %>% 
+  summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    ))
+```
+Still over 200 missing values in wind_dir, wind_speed and wind_gust. Will merge to flights data to see how many flights this results in with missing weather data before decided what to do. 
+
+Visibility has only 11 missing values. Will drop these.
+
+```{r}
+# add to cleaning script
+weather_clean %>% 
+  drop_na(visib)
+```
+
+Reviewing NAs in wind_dir
+
+```{r}
+weather_clean %>% 
+  filter(is.na(wind_dir)) %>% 
+  distinct(visib)
+```
+
+```{r}
+weather_clean %>% 
+  filter(visib == 10) %>% 
+  distinct(wind_speed)
+```
+Opting to drop NAs from wind_dir, wind_speed and wind_gust
+
+```{r}
+# add to cleaning script
+weather_clean %>% 
+  drop_na(wind_dir) %>% 
+  drop_na(wind_speed) %>% 
+  drop_na(wind_gust)
+```
+
+```{r}
+weather_clean %>% 
+  summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    ))
+```
+All NAs dealt with. 
+
+```{r}
+# checking data contains info for all 3 airports
+weather_clean %>% 
+  distinct(origin)
+```
+
+```{r}
+#checking data contains all of 2017
+time_hour <- weather_clean %>% 
+  distinct(time_hour)
+# confirmed
+```
+
+```{r}
+test_join <- flights_clean %>% 
+              left_join(weather_clean, 
+                        by = c("origin", "time_hour"))
+```
+
+```{r}
+test_join %>% 
+  filter(origin == "EWR",
+         time_hour == "2017-10-01 21:00:00")
+```
+```{r}
+weather_clean %>% 
+  filter(origin == "EWR",
+         time_hour == "2017-10-01 21:00:00")
+```
+Joining tested, spotted checked and functioning correctly.
+
+```{r}
+#checking NAs in newly joined data
+
+flight_weather %>% 
+  summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    ))
+```
+24686 missing values from wind_dir, wind_speed, wind_gust, visib.
+
+```{r}
+# how much of data is missing?
+24686/303748 *100
+
+#how much data will remain if drop NAs
+303748 - 24686
+```
+If we drop missing values we will lose 8.1% of the data. However, the alternative is inserting a statistical calculation for wind information which could lead to inaccuracies in the final model.
+
+As our business brief states that the company believe poor weather conditions are causing too many delays and want to invest in improving facilities, so that aircraft can take off in more types of weather, we do not want to assume data related to weather. Dropping the missing values will leave 27,9062 rows.
+
+
+
+
+

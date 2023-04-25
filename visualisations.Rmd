@@ -1,0 +1,37 @@
+---
+title: "Visualisations"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+**Brief**
+
+You have been hired by Newark airport to investigate the effect of weather on aeroplane departure delays.
+
+They believe poor weather conditions are causing too many delays and want to invest in improving facilities, so that aircraft can take off in more types of weather. However, they do not fully understand how serious weather related delays are, and are not sure what type of weather they should be most concerned about. As part of investigating the effect of weather you should investigate other factors to understand how important weather is in comparison to them
+
+They also want to understand how they compare to other New York airports.
+
+```{r}
+library(tidyverse)
+library(here)
+```
+
+```{r}
+flight_weather_plane <- read_csv("clean_data/flight_weather_plane.csv")
+```
+
+```{r}
+flight_weather_plane %>% 
+  filter(status != "on time") %>% 
+  ggplot(aes(x = origin, fill = status)) +
+  geom_bar(position = "dodge")
+```
+
+```{r}
+flight_weather_plane %>% 
+  filter(status == "delayed") %>% 
+  ggplot(aes(x = date, group = origin, colour = origin)) +
+  geom_line()
+```

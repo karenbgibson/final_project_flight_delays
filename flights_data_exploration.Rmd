@@ -1,0 +1,216 @@
+---
+title: "Flights data exploration"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(chron)
+library(hms)
+```
+
+```{r}
+source(here("data_cleaning_scripts/flight_delays.R"))
+```
+
+# Brief Overview
+
+Brief: 
+They believe poor weather conditions are causing **too many delays** and want to invest in improving facilities, so that aircraft can take off in more types of weather. 
+
+However, they do not fully understand **how serious weather related delays are**, and are **not sure what type of weather they should be most concerned about**. As part of investigating the effect of weather you should **investigate other factors** to understand **how important weather is in comparison to them**
+
+They also want to understand **how they compare to other New York airports**.
+
+#Definitions
+
+Define New York airports: 
+- Will investigate JFK and La Guardia as competitors/valid comparisons. These alongside Newark are the main hubs for New York city, carrying commercial passengers
+
+Define delays:
+Specifically looking at departure delays from Newark and the reason for these delays. Not concerned with arrival delays/flight time. 
+
+The US FAA define delayed flights as those delayed 15 or more minutes. (https://aspm.faa.gov/aspmhelp/index/ASPM__Analysis__Delayed_Flights.html)
+
+#Data overview
+
+```{r}
+flights %>% 
+  distinct(origin)
+
+#only EWR, LGA and JFK info available. Meets NYC airport definition
+```
+```{r}
+flights %>% 
+  distinct(year)
+```
+```{r}
+flights %>% 
+  distinct(month)
+```
+
+Data includes all 3 NYC serving airports for every month in 2017.
+
+```{r}
+flights %>% 
+  summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    ))
+```
+# Unneccesary variables
+
+Not cocerned with arrival data so will remove arr_time, sched_arr_time, arr_delay.
+
+Will also remove air_time and time_hour as these do not appear to be significnat variables for the purpose of this exploration.
+
+# Missing values
+
+7810 missing values from departure time. Check if any of those times can be calculated based on other variables:
+
+```{r}
+flights %>% 
+  filter(is.na(dep_time)) %>% 
+  distinct(arr_time)
+```
+
+
+```{r}
+flights %>% 
+  filter(is.na(dep_time)) %>% 
+  mutate(month = as.numeric(month)) %>% 
+  group_by(origin, month) %>% 
+  summarise(count = n())
+```
+
+All flights with no dep_time also have no arrival time. Assume all were cancelled flights. 
+
+US Dept of Transportation publishes cancelled flight numbers by airport. On review on 2017 data, cancelled flights for all months in each of JFK, LGA and EWR closely match the missing numbers in the flights dataset. Dep_time is dbl so cannot impute NAs to "cancelled" without changing variable to character string. Opting to add new status variable. 
+
+Status variable will include "cancelled" if no dept time, "delayed" if 15 mins late departure or "on time" if departure within 15 mins of schedule.
+
+(https://www.transtats.bts.gov/HomeDrillChart_Month.asp?5ry_lrn4=FDEK&N44_Qry=E&5ry_Pn44vr4=DDD&5ry_Nv42146=DDD&heY_fryrp6lrn4=FDFG&heY_fryrp6Z106u=E)
+
+```{r}
+# testing cancelled option in R script has worked:
+flights %>% 
+  filter(status == "cancelled") %>% 
+  distinct(dep_time)
+# all showing as NA, indicating code has worked
+```
+```{r}
+# checking remaining NAs in other categories with consideration of new cancelled variable
+
+flights %>% 
+  filter(status != "cancelled") %>% 
+  summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    ))
+```
+No other NAs to deal with.
+
+Reviewing cancelled flights and NA data:
+
+```{r}
+flights %>% 
+  filter(status == "cancelled") %>% 
+  summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    ))
+```
+
+Only NAs are dep_time, dep_delay and tailnum. NA values both 7810 in dep_time and dep_delay which is expected. 
+
+991 tailnums missing but we would expect all to be missing. Will leave for now in case tailnum becomes significant in future of data exploration.
+
+Need to impute dep_delay column but first need to change dep_time and sched_dep_time to datetime for calculation to work. 
+
+# Tidying variables
+
+## changing dep_time and sched_time to datetime 
+
+
+```{r}
+#scheduled dept time
+flights %>% 
+  mutate(dep_time = 
+           sprintf("%04d", dep_time),
+         dep_time = paste0(
+           substr(dep_time, 1, 2), ":", 
+           substr(dep_time, 3, 4)),
+         dep_time = as.POSIXct(dep_time,
+                               format = "%H:%M",
+                               tz = "US/Eastern"),
+         dep_time = as_hms(as.POSIXct(dep_time))
+  ) %>% 
+  head()
+```
+
+```{r}
+#dep time
+flights_clean %>% 
+  mutate(dep_time = 
+           sprintf("%04d", flights$dep_time),
+         dep_time = paste0(
+           substr(dep_time, 1, 2), ":", 
+           substr(dep_time, 3, 4)),
+    dep_time = as.POSIXct(dep_time,
+                             format = "%H:%M",
+                             tz = "US/Eastern"),
+  dep_time = as_hms(as.POSIXct(dep_time))
+  ) %>% 
+  head()
+```
+Checking for remaining NAs
+
+```{r}
+flights_clean %>% 
+  filter(status != "cancelled") %>% 
+  summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    ))
+```
+4 departure delays with missing values.
+
+```{r}
+flights_clean %>% 
+  filter(status != "cancelled",
+         is.na(dep_delay)) 
+  
+```
+
+All 4 flights with NA for dep_delay departed exactly on time. Can calculate using dep_time - sched_dep_time:
+
+```{r}
+
+dep_delay_check <- flights_clean %>% 
+  mutate(dep_delay =
+           (if_else(is.na(dep_delay),
+                   as.numeric(dep_time - sched_dep_time),
+                   dep_delay))) %>% 
+    filter(status != "cancelled")
+
+skimr::skim(dep_delay_check)
+
+# no NAs remaining in dep_delay
+
+```
+No more NAs to deal with.
+
+# Creating date variable for time series analysis
+
+```{r}
+flights_clean %>% 
+  mutate(made_date = make_datetime(year, month, day)) 
+```

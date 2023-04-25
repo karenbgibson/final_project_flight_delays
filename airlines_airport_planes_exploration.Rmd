@@ -1,0 +1,148 @@
+---
+title: "Airlines, airports, planes"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+library(here)
+library(tidyverse)
+```
+
+
+```{r}
+source(here("data_cleaning_scripts/flight_delays.R"))
+```
+
+# Airlines 
+```{r}
+airlines
+```
+```{r}
+flight_weather
+```
+
+To include full name of carrier can left join weather_flight with airlines on carrier variable.
+
+```{r}
+flight_weather %>% 
+  left_join(airlines, by = "carrier") %>% 
+  rename(carrier_name = name)
+```
+Checking new joined dataset for carrier names
+
+```{r}
+flight_weather %>% 
+  distinct(carrier_name)
+```
+12 distinct carriers, no missing values. 
+
+# Airports
+
+```{r}
+airports
+```
+Unclear at this stage if any of this information is valuable for our data exploration. Not joining for now. 
+
+# Planes
+
+```{r}
+planes
+```
+
+```{r}
+planes %>% 
+  summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    ))
+```
+Dropping year, seats and speed, all have missing values and Likely inconsequential for final data modelling.
+
+```{r}
+planes %>% 
+  select(-c(year, seats, speed))
+```
+
+```{r}
+flight_weather
+```
+
+Can left join flight_weather and planes_clean on tailnum
+
+```{r}
+test_plane_join <- flight_weather %>% 
+  left_join(planes_clean, by = "tailnum")
+```
+
+```{r}
+test_plane_join %>% 
+  summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    ))
+```
+
+Large number flights do not have tailnums that have further info in the planes dataset. Do not want to remove these as do not want to further reduce the dataset. Have searched internet and can't find any further data. Will impute as unknown.
+
+```{r}
+test <- test_plane_join %>% 
+  mutate(tailnum = if_else(
+    is.na(tailnum), "unknown", tailnum)) %>% 
+  mutate(type = if_else(
+    is.na(type), "unknown", type)) %>%
+  mutate(manufacturer = if_else(
+    is.na(manufacturer), "unknown", manufacturer)) %>%
+  mutate(model = if_else(
+    is.na(model), "unknown", model)) %>%
+  mutate(engine = if_else(
+     is.na(engine), "unknown", engine))
+```
+
+```{r}
+flight_weather_plane %>% 
+  filter(engines == "unknown")
+```
+
+```{r}
+weather_test <- weather %>% 
+  clean_names() %>% 
+  #removing columns with large number of NAs
+  select(-c(year, month, day, hour,
+            temp, dewp, humid, precip, pressure)) %>% 
+  # dropping NA rows from weather data
+  drop_na(visib) %>% 
+  drop_na(wind_dir) %>% 
+  drop_na(wind_speed) %>% 
+  drop_na(wind_gust) 
+```
+
+```{r}
+weather_test %>%    
+  summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    ))
+```
+```{r}
+flight_weather_plane %>% 
+    summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    ))
+```
+
+
+
+
+
+
+
+
+
+

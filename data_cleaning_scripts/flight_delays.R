@@ -1,8 +1,49 @@
-flights <- read_csv("data/flights.csv") %>% 
+
+# Libraries ------------------------------------------------
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(hms)
+library(here)
+
+# Data -----------------------------------------------------
+flights <- read_csv("data/flights.csv")
+airlines <- read_csv("data/airlines.csv")
+planes <- read_csv("data/planes.csv")
+weather <- read_csv("data/weather.csv")
+
+
+# Flight data cleaning -------------------------------------
+flights_clean <- flights %>% 
   clean_names() %>% 
   # removing arrival data and other unnecessary variables
   select(-c(arr_time, sched_arr_time, 
-             arr_delay, air_time, time_hour)) %>% 
+            arr_delay, air_time, 
+            distance,
+            hour, minute)) %>% 
+  # adding date variable
+  mutate(date = make_datetime(year, month, day)) %>% 
+  # mutating departure variables to datetime
+  mutate(dep_time = 
+  sprintf("%04d", dep_time),
+dep_time = paste0(
+  substr(dep_time, 1, 2), ":", 
+  substr(dep_time, 3, 4)),
+dep_time = as.POSIXct(dep_time,
+                      format = "%H:%M",
+                      tz = "US/Eastern"),
+dep_time = as_hms(as.POSIXct(dep_time))
+) %>%
+  mutate(sched_dep_time = 
+           sprintf("%04d", sched_dep_time),
+         sched_dep_time = paste0(
+           substr(sched_dep_time, 1, 2), ":", 
+           substr(sched_dep_time, 3, 4)),
+         sched_dep_time = as.POSIXct(sched_dep_time,
+                               format = "%H:%M",
+                               tz = "US/Eastern"),
+         sched_dep_time = as_hms(as.POSIXct(sched_dep_time))
+  ) %>% 
   # imputing NAs in dep_delay to be calculation of dep_time - sched_dep_time
   mutate(dep_delay = ifelse(is.na(dep_delay), 
                             dep_time - sched_dep_time, 
@@ -12,9 +53,57 @@ flights <- read_csv("data/flights.csv") %>%
     is.na(dep_time) ~ "cancelled",
     dep_delay >= 15 ~ "delayed",
     dep_delay < 15 ~ "on time",
-    TRUE ~ "unknown")) %>% 
-  # making variable names clearly pre-joining
-  rename(carrier_code = carrier,
-         origin_airport_code = origin,
-         dest_airport_code = dest)
+    TRUE ~ "unknown")) 
 
+# Weather cleaning data ------------------------------------
+weather_clean <- weather %>% 
+  clean_names() %>% 
+  #removing columns with large number of NAs
+  select(-c(year, month, day, hour,
+            temp, dewp, humid, precip, pressure)) %>% 
+  # dropping NA rows from weather data
+  drop_na(visib) %>% 
+  drop_na(wind_dir) %>% 
+  drop_na(wind_speed) %>% 
+  drop_na(wind_gust) 
+
+# Planes cleaning data -------------------------------------
+planes_clean <- planes %>% 
+  clean_names() %>% 
+  #removing unnecessary variables
+  select(-c(year, seats, speed))
+
+# Joining flight, weather & airline data-------------------
+flight_weather <- flights_clean %>% 
+  left_join(weather_clean, 
+            by = c("origin", "time_hour")) %>% 
+  left_join(airlines, by = "carrier") %>% 
+  rename(carrier_name = name) %>% 
+  # removing flights with missing wind_data
+  drop_na(visib) %>% 
+  drop_na(wind_dir) %>% 
+  drop_na(wind_speed) %>% 
+  drop_na(wind_gust) 
+
+# Joining plane data ------------------------------------------------------
+flight_weather_plane <- flight_weather %>% 
+  left_join(planes_clean, by = "tailnum") %>% 
+  # imputing NA values
+  mutate(tailnum = if_else(
+  is.na(tailnum), "unknown", tailnum)) %>% 
+  mutate(type = if_else(
+    is.na(type), "unknown", type)) %>%
+  mutate(manufacturer = if_else(
+    is.na(manufacturer), "unknown", manufacturer)) %>%
+  mutate(model = if_else(
+    is.na(model), "unknown", model)) %>%
+  mutate(engine = if_else(
+    is.na(engine), "unknown", engine)) %>% 
+  mutate(engines = if_else(
+    is.na(engines), "unknown", as.character(engines)))
+
+
+# Saving clean data script ------------------------------------------------
+
+flight_weather_plane %>% 
+  write_csv(here("clean_data/flight_weather_plane.csv"))
