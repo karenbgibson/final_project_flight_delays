@@ -1,0 +1,384 @@
+---
+title: "Logistic regression"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(GGally)
+library(modelr)
+library(glmulti)
+library(pROC)
+library(patchwork)
+```
+# Data exploration and further cleaning
+
+```{r}
+newark_info <- read_csv("clean_data/newark_info.csv")
+
+newark_info %>% 
+  head()
+
+newark_info %>% 
+  distinct(flight)
+```
+
+```{r}
+newark_info  %>%
+  distinct(manufacturer)
+# 20 manufacturers too many for factored variable. Will remove.
+```
+
+
+```{r}
+newark_info  %>%
+  distinct(type)
+# 4 variables - okay to keep in.
+```
+
+```{r}
+newark_info  %>%
+  distinct(carrier_name)
+# 10 variables - okay to keep in.
+```
+```{r}
+newark_info  %>%
+  distinct(model) %>% 
+  arrange(model)
+# 64 variables - too many for factored variable - further exploration needed.
+# will remove for now as difficult to determine suitable groupings without domain knowledge.
+```
+
+```{r}
+newark_info  %>%
+  distinct(engine)
+# 9 variables - okay to keep
+```
+```{r}
+newark_info  %>%
+  distinct(engines)
+# 6 variables - okay to keep
+```
+
+```{r}
+newark_factored <- newark_info %>% 
+  select(-c(year, day, origin, dep_delay, carrier,
+            dep_time, dest, sched_dep_time, tailnum,
+            time_hour, date, flight, manufacturer,
+            model)) %>% 
+  mutate(across(c(month, weekday,
+         carrier_name,
+         type,
+         engines,
+         engine), 
+                ~as.factor(.x))) %>% 
+  # combining cancelled and delayed to "delayed" for binary outcome 
+  mutate(final_status = as.factor(if_else(status == "on time", 
+                                 "on time", "delayed"))) %>% 
+  select(-status)
+
+newark_factored %>% 
+  head()
+  
+```
+# Preparation for logistic regression
+
+```{r}
+alias(final_status ~ ., data = newark_factored)
+```
+
+Will remove wind_gust as appears to be aliased variable.
+
+Engines and engine both have more factors than showing in alias table. Engines has fewer variables and is simply a count of the number of engines in on each plane, have opted to remove this and keep the engine variable. 
+
+
+```{r}
+newark_factored <- newark_factored %>% 
+  select(-c(wind_gust, engines))
+```
+
+```{r}
+weather_factors <- newark_factored %>% 
+  select(final_status, wind_dir, wind_speed, visib,
+         tavg_c, prcp, snow)
+```
+
+```{r}
+weather_factors %>% 
+  ggpairs(progress = FALSE)
+```
+
+```{r}
+plane_factors <- newark_factored %>% 
+  select(final_status, type, engine)
+```
+
+```{r}
+plane_factors %>% 
+  ggpairs(progress = FALSE)
+```
+
+```{r}
+schedule_factors <- newark_factored %>% 
+  select(final_status, month, weekday)
+```
+
+```{r}
+schedule_factors %>% 
+  ggpairs(progress = FALSE)
+```
+
+GG pairs plots are difficult to interpret in this instance. Manual model building not the best option. Will use glmulti package for automated model building.
+
+```{r}
+newark_factored %>% 
+  head()
+```
+
+# Glmulti
+
+Creating test and train data:
+
+```{r}
+n_rows <- nrow(newark_factored)
+
+test_index <- sample(1:n_rows, size = n_rows*0.2)
+
+newark_train <- slice(newark_factored, -test_index)
+newark_test <- slice(newark_factored, test_index)
+```
+
+```{r}
+newark_train %>%
+  tabyl(final_status)
+```
+
+```{r}
+newark_test %>%
+  tabyl(final_status)
+```
+Test and train data have good distribution of outcome. Continue with glmulti model. 
+
+```{r}
+glmulti_search_all_mains <- glmulti(
+  final_status ~ ., 
+  data = newark_train,
+  level = 1,               # No interactions considered, main effects only
+  method = "h",            # Exhaustive approach
+  crit = "bic",            # BIC as criteria
+  confsetsize = 10,        # Keep 10 best models
+  plotty = F, 
+  report = T,              # No plots, but provide interim reports
+  fitfunction = "glm",     # glm function
+  family = binomial(link = "logit")) # binomial family for logistic regression
+```
+
+```{r}
+summary_glmulti <- summary(glmulti_search_all_mains)
+```
+The best model from glmulti is:
+
+final_status ~ 1 + month + weekday + carrier_name + type + hour + wind_speed + visib + tavg_c + prcp + snow"  
+
+```{r}
+mod1 <- glm(final_status ~ month + weekday + carrier_name + 
+              type + hour +  wind_speed + visib + tavg_c + 
+              prcp + snow,
+            family = binomial(link = "logit"), data = newark_train)
+```
+
+```{r}
+roc1 <- newark_train %>%
+  add_predictions(mod1, type = "response") %>%
+  roc(response = final_status, predictor = pred)
+```
+```{r}
+auc(roc1)
+```
+
+```{r}
+label_best_auc <- str_c(
+  "AUC: ", round(auc(roc1),2))
+
+(roc_curve1 <- ggroc(data = roc1, 
+                     legacy.axes = TRUE, 
+                     color = "darkgreen",
+                     size = 2) +
+   coord_fixed() + 
+    labs(title = "Best model: combined factors",
+         subtitle = "month, weekday, carrier, type, 
+hour, wind speed visibility, average 
+temperature, precipitation, snow",
+x = "\n1-specificity (true negative rate)",
+y = "sensitivity (true positive rate)\n"
+    ) +
+   annotate("text", x = 0.70, y = 0.35, 
+            label = label_best_auc,
+            size= 6) +
+   theme_bw()) +
+  theme(plot.title = element_text(
+    face = "bold", size = 18),
+    plot.subtitle = element_text(
+      face = "bold.italic", size = 14),
+    text = element_text(size = 16),
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14))
+```
+
+Performing glmulti including interaction to test if model is better:
+
+```{r}
+glmulti_search_all_mains_one_pair <- glmulti(
+  final_status ~ month + weekday + carrier_name + 
+              type + hour +  wind_speed + visib + tavg_c + 
+              prcp + snow,
+  data = newark_train,
+  level = 2,               # Interactions considered
+  method = "h",            # Exhaustive approach
+  crit = "bic",            # BIC as criteria
+  confsetsize = 10,        # Keep 10 best models
+  marginality = TRUE,      # consider pairs only if both main effects in model
+  minsize = 11,             # minsize, maxsize and marginality here force 
+  maxsize = 11,             # inclusion of a single pair beyond the ten main effects
+  plotty = F, 
+  report = T,              # No plots, but provide interim reports
+  fitfunction = "glm",     # glm function
+  family = binomial(link = "logit")) # binomial family for logistic regression
+
+```
+Interrupted after 12 hours of running:
+
+After 63800 models:
+Best model: final_status~1+month+hour+wind_speed+visib+tavg_c+prcp+snow+tavg_c:hour+snow:prcp+month:tavg_c+month:prcp
+Crit= 87583.5569166449
+Mean crit= 87625.7595997976
+
+```{r}
+mod2 <- glm(final_status ~ month + hour + wind_speed + visib + tavg_c + prcp + snow + tavg_c:hour + snow:prcp + month:tavg_c + month:prcp,
+            family = binomial(link = "logit"), data = newark_train)
+```
+
+```{r}
+roc2 <- newark_train %>%
+  add_predictions(mod2, type = "response") %>%
+  roc(response = final_status, predictor = pred)
+```
+
+```{r}
+auc(roc2)
+```
+AUC is smaller than model without interactions. Interaction model not competitive. 
+
+## Testing mod1 on training data
+
+```{r}
+roc1_test <- newark_test %>%
+  add_predictions(mod1, type = "response") %>%
+  roc(response = final_status, predictor = pred)
+```
+```{r}
+auc(roc1_test)
+```
+Area under curve for training data: 0.7526
+Area under curve for test data: 0.7542
+
+Model seems to fit data well. 
+
+## Logistic regression with weather variables only - backward selection
+
+With all weather related variables:
+
+```{r}
+mod1_weather <- glm(final_status ~ wind_dir + wind_speed + 
+                    visib + tavg_c + prcp + snow,
+                    data = newark_train, 
+                    family = binomial(link = "logit"))
+
+summary(mod1_weather)
+```
+
+```{r}
+bic(mod1_weather)
+```
+
+wind_dir is not significant - remove. BIC is much higher than that of glmulti model with additional (non-weather) factors. 
+
+```{r}
+mod2_weather <- glm(final_status ~ wind_speed + 
+                    visib + tavg_c + prcp + snow,
+                    data = newark_train, 
+                    family = binomial(link = "logit"))
+
+summary(mod2_weather)
+```
+
+```{r}
+bic(mod2_weather)
+```
+BIC still much higher that glmulti model. 
+
+Further testing of weather only model (mod2_weather):
+
+```{r}
+roc_weather <- newark_train %>%
+  add_predictions(mod2_weather, type = "response") %>%
+  roc(response = final_status, predictor = pred)
+```
+```{r}
+auc(roc_weather)
+```
+
+```{r}
+roc_weather_test <- newark_test %>%
+  add_predictions(mod2_weather, type = "response") %>%
+  roc(response = final_status, predictor = pred)
+```
+```{r}
+auc(roc_weather_test)
+```
+AUC train: 0.6018
+AUC test: 0.5938
+
+Model fits data well.
+
+```{r}
+#plotting roc curve for best weather model
+
+label_weather_auc <- str_c(
+  "AUC: ", round(auc(roc_weather_test),2))
+
+(roc_curve_weather <- ggroc(data = roc_weather, 
+                            legacy.axes = TRUE, 
+                            colour = "#0072B2",
+                            size = 2) +
+    coord_fixed() + 
+    labs(title = "Model: weather related factors",
+         subtitle = "wind speed, visibility, average 
+temperature, precipitation & snow\n",
+x = "\n1-specificity (true negative rate)",
+y = "sensitivity (true positive rate)\n"
+    ) +
+    annotate("text", x = 0.70, y = 0.35, 
+             label = label_weather_auc,
+             size= 6) +
+    theme_bw()) +
+  theme(plot.title = element_text(
+    face = "bold", size = 18),
+    plot.subtitle = element_text(
+      face = "bold.italic", size = 14),
+    text = element_text(size = 16),
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14))
+```
+
+```{r}
+roc_curve_weather + roc_curve1
+
+ggsave("roc_curves.png", width = 10, height = 6)
+```
+
+
+

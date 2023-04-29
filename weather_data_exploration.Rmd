@@ -15,7 +15,7 @@ library(here)
 ```{r}
 source(here("data_cleaning_scripts/flight_delays.R"))
 ```
-
+# Data exploration 
 ```{r}
 weather %>% 
   summarise(
@@ -24,16 +24,16 @@ weather %>%
       ~sum(is.na(.))
     ))
 ```
-Temp, dewp, humid, precip, pressure all have significant number of missing values. Dropping these from the dataset. 
+Temp, dewp, humid, precip, pressure all have significant number of missing values. Will search for other datasets with this info. Dropping from this dataset and beginning cleaning process/  
 
 ```{r}
-weather_clean <- weather %>% 
-  select(-c(year, month, day, hour, temp, 
+test_weather_clean <- weather %>%
+  select(-c(year, month, day, hour, temp,
             dewp, humid, precip, pressure))
 ```
 
 ```{r}
-weather_clean %>% 
+test_weather_clean %>% 
   summarise(
     across(
       everything(),
@@ -42,18 +42,18 @@ weather_clean %>%
 ```
 Still over 200 missing values in wind_dir, wind_speed and wind_gust. Will merge to flights data to see how many flights this results in with missing weather data before decided what to do. 
 
-Visibility has only 11 missing values. Will drop these.
+Visibility has only 11 missing values. Will drop these 11 rows.
 
 ```{r}
 # add to cleaning script
-weather_clean %>% 
+test_weather_clean %>% 
   drop_na(visib)
 ```
 
 Reviewing NAs in wind_dir
 
 ```{r}
-weather_clean %>% 
+test_weather_clean %>% 
   filter(is.na(wind_dir)) %>% 
   distinct(visib)
 ```
@@ -137,7 +137,21 @@ If we drop missing values we will lose 8.1% of the data. However, the alternativ
 
 As our business brief states that the company believe poor weather conditions are causing too many delays and want to invest in improving facilities, so that aircraft can take off in more types of weather, we do not want to assume data related to weather. Dropping the missing values will leave 27,9062 rows.
 
+# Additional dataset
 
+Sourced from: https://meteostat.net/en/station/72502?t=2017-01-01/2017-12-31
 
+Information on avg_temp, precipitation and snow for every day in 2017. Will join to current dataset. Checking for NAs here before adding to cleaning script:
+
+```{r}
+additional_weather %>% 
+  summarise(
+    across(
+      everything(),
+      ~sum(is.na(.))
+    )
+  )
+```
+No NAs, adding and joining to weather_clean in cleaning script.
 
 

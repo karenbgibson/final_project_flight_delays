@@ -9,7 +9,7 @@ editor_options:
 library(tidyverse)
 library(janitor)
 library(lubridate)
-library(chron)
+library(here)
 library(hms)
 ```
 
@@ -67,7 +67,7 @@ flights %>%
 
 Not cocerned with arrival data so will remove arr_time, sched_arr_time, arr_delay.
 
-Will also remove air_time and time_hour as these do not appear to be significnat variables for the purpose of this exploration.
+Will also remove air_time and time_hour as these do not appear to be significant variables for the purpose of this exploration.
 
 # Missing values
 
@@ -78,7 +78,6 @@ flights %>%
   filter(is.na(dep_time)) %>% 
   distinct(arr_time)
 ```
-
 
 ```{r}
 flights %>% 
@@ -98,34 +97,34 @@ Status variable will include "cancelled" if no dept time, "delayed" if 15 mins l
 
 ```{r}
 # testing cancelled option in R script has worked:
-flights %>% 
-  filter(status == "cancelled") %>% 
-  distinct(dep_time)
+# flights_clean %>% 
+#   filter(status == "cancelled") %>% 
+#   distinct(dep_time)
 # all showing as NA, indicating code has worked
 ```
 ```{r}
 # checking remaining NAs in other categories with consideration of new cancelled variable
 
-flights %>% 
-  filter(status != "cancelled") %>% 
-  summarise(
-    across(
-      everything(),
-      ~sum(is.na(.))
-    ))
+# flights_clean %>% 
+#   filter(status != "cancelled") %>% 
+#   summarise(
+#     across(
+#       everything(),
+#       ~sum(is.na(.))
+#     ))
 ```
 No other NAs to deal with.
 
 Reviewing cancelled flights and NA data:
 
 ```{r}
-flights %>% 
-  filter(status == "cancelled") %>% 
-  summarise(
-    across(
-      everything(),
-      ~sum(is.na(.))
-    ))
+# flights_clean %>% 
+#   filter(status == "cancelled") %>% 
+#   summarise(
+#     across(
+#       everything(),
+#       ~sum(is.na(.))
+#     ))
 ```
 
 Only NAs are dep_time, dep_delay and tailnum. NA values both 7810 in dep_time and dep_delay which is expected. 
@@ -138,79 +137,73 @@ Need to impute dep_delay column but first need to change dep_time and sched_dep_
 
 ## changing dep_time and sched_time to datetime 
 
-
 ```{r}
 #scheduled dept time
-flights %>% 
-  mutate(dep_time = 
-           sprintf("%04d", dep_time),
-         dep_time = paste0(
-           substr(dep_time, 1, 2), ":", 
-           substr(dep_time, 3, 4)),
-         dep_time = as.POSIXct(dep_time,
-                               format = "%H:%M",
-                               tz = "US/Eastern"),
-         dep_time = as_hms(as.POSIXct(dep_time))
-  ) %>% 
-  head()
+# flights_clean %>% 
+#   mutate(dep_time = 
+#            sprintf("%04d", dep_time),
+#          dep_time = paste0(
+#            substr(dep_time, 1, 2), ":", 
+#            substr(dep_time, 3, 4)),
+#          dep_time = as.POSIXct(dep_time,
+#                                format = "%H:%M",
+#                                tz = "US/Eastern"),
+#          dep_time = as_hms(as.POSIXct(dep_time))
+#   ) %>% 
+#   head()
 ```
 
 ```{r}
 #dep time
-flights_clean %>% 
-  mutate(dep_time = 
-           sprintf("%04d", flights$dep_time),
-         dep_time = paste0(
-           substr(dep_time, 1, 2), ":", 
-           substr(dep_time, 3, 4)),
-    dep_time = as.POSIXct(dep_time,
-                             format = "%H:%M",
-                             tz = "US/Eastern"),
-  dep_time = as_hms(as.POSIXct(dep_time))
-  ) %>% 
-  head()
+# flights_clean %>% 
+#   mutate(dep_time = 
+#            sprintf("%04d", flights$dep_time),
+#          dep_time = paste0(
+#            substr(dep_time, 1, 2), ":", 
+#            substr(dep_time, 3, 4)),
+#     dep_time = as.POSIXct(dep_time,
+#                              format = "%H:%M",
+#                              tz = "US/Eastern"),
+#   dep_time = as_hms(as.POSIXct(dep_time))
+#   ) %>% 
+#   head()
 ```
 Checking for remaining NAs
 
 ```{r}
-flights_clean %>% 
-  filter(status != "cancelled") %>% 
-  summarise(
-    across(
-      everything(),
-      ~sum(is.na(.))
-    ))
+# flights_clean %>% 
+#   filter(status != "cancelled") %>% 
+#   summarise(
+#     across(
+#       everything(),
+#       ~sum(is.na(.))
+#     ))
 ```
 4 departure delays with missing values.
 
 ```{r}
-flights_clean %>% 
-  filter(status != "cancelled",
-         is.na(dep_delay)) 
-  
+# flights_clean %>% 
+#   filter(status != "cancelled",
+#          is.na(dep_delay)) 
+#   
 ```
-
 All 4 flights with NA for dep_delay departed exactly on time. Can calculate using dep_time - sched_dep_time:
 
 ```{r}
 
-dep_delay_check <- flights_clean %>% 
-  mutate(dep_delay =
-           (if_else(is.na(dep_delay),
-                   as.numeric(dep_time - sched_dep_time),
-                   dep_delay))) %>% 
-    filter(status != "cancelled")
-
-skimr::skim(dep_delay_check)
+# dep_delay_check <- flights_clean %>% 
+#   mutate(dep_delay =
+#            (if_else(is.na(dep_delay),
+#                    as.numeric(dep_time - sched_dep_time),
+#                    dep_delay))) %>% 
+#     filter(status != "cancelled")
+# 
+# skimr::skim(dep_delay_check)
 
 # no NAs remaining in dep_delay
 
 ```
 No more NAs to deal with.
 
-# Creating date variable for time series analysis
 
-```{r}
-flights_clean %>% 
-  mutate(made_date = make_datetime(year, month, day)) 
-```
+

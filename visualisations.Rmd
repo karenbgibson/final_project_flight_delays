@@ -5,6 +5,20 @@ editor_options:
   chunk_output_type: inline
 ---
 
+```{r}
+library(tidyverse)
+library(here)
+library(lubridate)
+library(tsibbledata)
+library(tsibble)
+library(patchwork)
+```
+
+```{r}
+all_info <- read_csv("clean_data/all_info_clean.csv")
+newark_info <- read_csv("clean_data/newark_info.csv")
+```
+
 **Brief**
 
 You have been hired by Newark airport to investigate the effect of weather on aeroplane departure delays.
@@ -16,6 +30,7 @@ They also want to understand how they compare to other New York airports.
 *Plan*
 
 Newark only first, then all three airports:
+- how busy are each of the airports?
 - What factors show a correlation with flight delay or cancellation? Check the following:
   - type of plane
   - carrier
@@ -24,47 +39,223 @@ Newark only first, then all three airports:
   - no of flights in day
 - Which of correlated factors are weather related?
 
-```{r}
-library(tidyverse)
-library(here)
-library(lubridate)
-library(tsibbledata)
-library(tsibble)
-```
+*Departure flights distribution across airports*
 
-```{r}
-all_info <- read_csv("clean_data/all_info_clean.csv")
-newark_info <- read_csv("clean_data/newark_info.csv")
+Data is available from https://www.bts.gov/ on all flights for all airports in the US. 
 
-```
+Looking at 2017 dept data for JFK, LGA and EWR we find the following:
+
+Total schedule dept across all 3 airports: 303, 748
+EWR - 115, 968 (38%)
+JFK - 94, 454 (31%)
+LGA - 93.326 (31%)
+
+The total number of flights matches that of our original dataset. Let's see if our cleaned dataset gives us equally distributed data:
 
 ```{r}
 all_info %>% 
-  filter(status != "on time") %>% 
-  ggplot(aes(x = origin, fill = status)) +
-  geom_bar(position = "dodge")
+  group_by(origin) %>% 
+  summarise(total_dep_by_origin = n()) %>% 
+  mutate(percent_dep = round(
+           total_dep_by_origin / 
+           sum(total_dep_by_origin) * 100))
+```
+
+Our cleaned dataset gives us total schedule dept across all 3 airports: 279,062
+EWR - 109,749 (39%)
+JFK - 86,889 (31%)
+LGA - 82,424 (30%)
+
+The distribution of departures in our cleaned dataset is broadly similar to our original dataset. We can therefore be comfortable that our analysis will provide an accurate representation of the data. 
+
+
+```{r}
+# adding percentage of flights by destination
+all_info_percentages <- all_info %>% 
+  group_by(origin) %>% 
+  mutate(percentage_dep_origin = round(n()/nrow(.)*100)) %>%
+  ungroup()
 ```
 
 ```{r}
-delayed_timeseries <- all_info %>% 
+# adding colour blind accessible palettes for ggplots
+
+cbb_palette_status <- c("#D55E00", "#F0E442", "#009E73")
+
+cbb_palette_airport <- c("#56B4E9","#E69F00", "#CC79A7")
+
+cbb_palette_grouped <- c("#56B4E9", "#0072B2","#D55E00", "#E69F00", "darkgreen", "#009E73") 
+
+cbb_palette_one = c("#0072B2", "#56B4E9")
+
+cbb_palette_two = c("#D55E00", "#E69F00")
+
+cbb_palette_three = c("darkgreen", "#009E73")
+                    
+```
+
+```{r}
+
+all_info %>% 
+  group_by(origin, status) %>% 
+  summarise(total_dep_by_origin = n()) %>% 
+  mutate(percent_dep = round(
+           total_dep_by_origin / 
+           sum(total_dep_by_origin) * 100)) %>% 
+  ggplot(aes(x = origin, 
+             y = percent_dep,
+             fill = status)) +
+  geom_col() +
+  geom_text(aes(label = percent_dep, 
+                group = status),
+                position = position_stack(vjust = .5)) +
+  scale_fill_manual(values = cbb_palette_status) +
+  theme_bw() +
+  labs(title = "Flight departure status",
+       subtitle = "Year: 2017",
+       fill = "Status",
+       x = "Origin Airport",
+       y = " Percent per status")
+
+ggsave("flight_departure_status.png")
+```
+
+```{r}
+all_info_ordered <- all_info %>% 
+  mutate(month = factor(month, levels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))) %>% 
+  mutate(weekday = factor(weekday, levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")))
+
+```
+
+```{r}
+timeseries_ordered <- all_info_ordered %>% 
+  group_by(origin, month, status) %>% 
+  summarise(total_dep_by_month = n()) %>% 
+  mutate(percent_by_status = round(
+           total_dep_by_month / 
+           sum(total_dep_by_month) * 100, 1))
+```
+```{r}
+# month with most delays by airport
+month_most_delays <- timeseries_ordered %>% 
   filter(status == "delayed") %>% 
-  group_by(origin, year, month) %>% 
-  count(month)
+  group_by(origin) %>% 
+  slice_max(percent_by_status)
 ```
 
 ```{r}
-(delayed_timeseries_plot <- delayed_timeseries %>% 
-    ggplot(aes(x = month, y = n, 
-               group = origin, colour = origin)) +
-    geom_point() +
-    geom_line()
+# month with fewest delays by airport
+timeseries_ordered %>% 
+  filter(status == "delayed") %>% 
+  group_by(origin) %>% 
+  slice_min(percent_by_status)
+```
+
+
+```{r}
+# month with most cancellations by airport
+timeseries_ordered %>% 
+  filter(status == "cancelled") %>% 
+  group_by(origin) %>% 
+  slice_max(percent_by_status)
+```
+```{r}
+# month with fewest cancellations by airport
+timeseries_ordered %>% 
+  filter(status == "cancelled") %>% 
+  group_by(origin) %>% 
+  slice_min(percent_by_status)
+```
+
+
+```{r}
+(timeseries_plot_ewr <- timeseries_ordered %>%
+   filter(origin == "EWR",
+          status != "on time") %>% 
+   ggplot(aes(x = month, 
+              y = percent_by_status, 
+              colour = status,
+              group = status,
+              label = percent_by_status)) +
+   geom_point(size = 2, stroke = 1.5) +
+   geom_line(size = 2) +
+   scale_colour_manual(values = cbb_palette_one) +
+   theme_bw() +
+   labs(title = "Cancelled & delayed flight departures by month",
+        subtitle = "Year: 2017",
+        x = "",
+        y = "%",
+        colour = "Status: EWR") +
+   scale_y_continuous(limits = c(0, 35), 
+                      breaks = seq(0, 35, 10)) +
+   theme(plot.title = element_text(
+     face = "bold", size = 20),
+     plot.subtitle = element_text(
+       face = "bold", size = 18),
+     text = element_text(size = 16),
+     axis.text.x = element_text(size = 14),
+     axis.text.y = element_text(size = 8))
 )
+```
+```{r}
+(timeseries_plot_jfk <- timeseries_ordered %>%
+   filter(origin == "JFK",
+          status != "on time") %>% 
+   ggplot(aes(x = month, 
+              y = percent_by_status, 
+              colour = status,
+              group = status)) +
+   geom_point(size = 2, stroke = 1.5) +
+   geom_line(size = 2) +
+   scale_colour_manual(values = cbb_palette_two) +
+   theme_bw() + 
+   labs(x = "",
+        y = "%",
+        colour = "Status: JFK") +
+   scale_y_continuous(limits = c(0, 35), 
+                      breaks = seq(0, 35, 10)) +
+      theme(
+     text = element_text(size = 16),
+     axis.text.x = element_text(size = 14),
+     axis.text.y = element_text(size = 8))
+)
+```
+
+```{r}
+(timeseries_plot_lga <- timeseries_ordered %>%
+   filter(origin == "LGA",
+          status != "on time") %>% 
+   ggplot(aes(x = month, 
+              y = percent_by_status, 
+              colour = status,
+              group = status)) +
+   geom_point(size = 2, stroke = 1.5) +
+   geom_line(size = 2) +
+   scale_colour_manual(values = cbb_palette_three) +
+   theme_bw() +
+  labs(x = "",
+        y = "%",
+        colour = "Status: LGA") +
+   scale_y_continuous(limits = c(0, 35), 
+                      breaks = seq(0, 35, 10)) +
+       theme(
+     text = element_text(size = 16),
+     axis.text.x = element_text(size = 14),
+     axis.text.y = element_text(size = 8))
+)
+```
+```{r}
+timeseries_plot_ewr / timeseries_plot_jfk / timeseries_plot_lga
+
+ggsave("images/delays_by_month.png",
+       width = 7,
+       height = 5)
 ```
 
 ```{r}
 ontime_timeseries <- all_info %>% 
   filter(status == "on time") %>% 
-  group_by(origin, year, month) %>% 
+  group_by(origin, month) %>% 
   count(month)
 ```
 
@@ -78,7 +269,7 @@ ontime_timeseries <- all_info %>%
 ```
 
 ```{r}
-cancelled_timeseries <- all_info %>% 
+cancelled_timeseries <- all_info_ordered %>% 
   filter(status == "cancelled") %>% 
   group_by(origin, year, month) %>% 
   count(month)
@@ -92,8 +283,9 @@ cancelled_timeseries <- all_info %>%
     geom_line()
 )
 ```
+
 ```{r}
-all_info %>% 
+all_info_ordered %>% 
   filter(status == "delayed",
          origin == "EWR") %>% 
   ggplot(aes(x = carrier, fill = carrier_name)) +
@@ -107,7 +299,7 @@ all_info %>%
   mutate(percent_flights = 
            total_flights / sum(total_flights) * 100)
 ```
-*Highlighting as potentially plot for slides**
+*Highlighting as potential plot for slides**
 
 ```{r}
 status_percentage <- all_info %>% 
@@ -115,23 +307,27 @@ status_percentage <- all_info %>%
   summarise(n = n()) %>% 
   mutate(percent = round(n/sum(n)*100, 2))
 ```
+
 ```{r}
 status_percentage %>% 
   ggplot(aes(x = origin, y = percent, fill = status)) +
   geom_col(position = "dodge")
 ```
+
 ```{r}
 delays_by_time <- newark_info %>%
   group_by(hour, status) %>% 
   summarise(n = n()) %>% 
   mutate(percent = round(n / sum(n) * 100))
 ```
+
 ```{r}
 newark_info %>% 
   ggplot(aes(x = hour, fill = status)) +
   geom_bar() +
   facet_wrap(. ~ status)
 ```
+
 ```{r}
 all_info %>% 
   group_by(origin) %>% 
@@ -139,6 +335,21 @@ all_info %>%
   geom_bar() +
   facet_wrap(. ~ status)
 ```
-Add weekday?
+
+```{r}
+weekday_percentage <- all_info_ordered %>%
+  group_by(weekday, status) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent = round(n/sum(n)*100, 2))
+  
+```
+```{r}
+weekday_percentage %>% 
+  ggplot(aes(x = weekday, y = percent, fill = status)) +
+  geom_col(position = "dodge") + 
+  facet_grid(. ~ origin)
+```
+
+
 
 

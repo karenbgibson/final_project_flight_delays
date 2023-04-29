@@ -26,9 +26,9 @@ flight_weather
 To include full name of carrier can left join weather_flight with airlines on carrier variable.
 
 ```{r}
-flight_weather %>% 
-  left_join(airlines, by = "carrier") %>% 
-  rename(carrier_name = name)
+# #flight_weather %>% 
+#   left_join(airlines, by = "carrier") %>% 
+#   rename(carrier_name = name)
 ```
 Checking new joined dataset for carrier names
 
@@ -103,7 +103,7 @@ test <- test_plane_join %>%
 ```
 
 ```{r}
-flight_weather_plane %>% 
+all_info %>% 
   filter(engines == "unknown")
 ```
 
@@ -129,7 +129,7 @@ weather_test %>%
     ))
 ```
 ```{r}
-flight_weather_plane %>% 
+all_info %>% 
     summarise(
     across(
       everything(),
@@ -137,7 +137,7 @@ flight_weather_plane %>%
     ))
 ```
 
-
+Only dep_time and dep_delay missing. As expected per cancelled flights. 
 
 
 

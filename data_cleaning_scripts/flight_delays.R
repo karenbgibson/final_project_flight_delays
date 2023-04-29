@@ -11,6 +11,7 @@ flights <- read_csv("data/flights.csv")
 airlines <- read_csv("data/airlines.csv")
 planes <- read_csv("data/planes.csv")
 weather <- read_csv("data/weather.csv")
+additional_weather <- read_csv("data/export_weather.csv")
 
 
 # Flight data cleaning -------------------------------------
@@ -54,20 +55,12 @@ dep_time = as_hms(as.POSIXct(dep_time))
     dep_delay < 15 ~ "on time",
     TRUE ~ "unknown")) %>% 
   # mutating month value to words for data viz
-  mutate(month = case_when(
-    month == 1 ~ "Jan",
-    month == 2 ~ "Feb",
-    month == 3 ~"Mar",
-    month == 4 ~ "Apr",
-    month == 5 ~ "May",
-    month == 6 ~ "Jun",
-    month == 7 ~ "Jul",
-    month == 8 ~ "Aug",
-    month == 9 ~ "Sep",
-    month == 10 ~ "Oct",
-    month == 11 ~ "Nov",
-    month == 12 ~ "Dec",
-  ))
+  mutate(month = as.factor(month(date, 
+                         label = TRUE))) %>% 
+  # adding weekday column
+  mutate(weekday = as.factor(wday(
+    date, label = TRUE, abbr = TRUE)),
+    .after = day)
 
 # Weather cleaning data ------------------------------------
 weather_clean <- weather %>% 
@@ -79,7 +72,13 @@ weather_clean <- weather %>%
   drop_na(visib) %>% 
   drop_na(wind_dir) %>% 
   drop_na(wind_speed) %>% 
-  drop_na(wind_gust) 
+  drop_na(wind_gust) %>% 
+  #adding date variable for additional weather join
+  mutate(date = as.Date(time_hour)) %>% 
+  # joining additional weather data
+  left_join(additional_weather, by = "date") %>% 
+  # removing date column as not necessary post join
+  select(-date)
 
 # Planes cleaning data -------------------------------------
 planes_clean <- planes %>% 
