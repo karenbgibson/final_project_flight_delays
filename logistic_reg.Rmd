@@ -76,8 +76,8 @@ newark_factored <- newark_info %>%
          engine), 
                 ~as.factor(.x))) %>% 
   # combining cancelled and delayed to "delayed" for binary outcome 
-  mutate(final_status = as.factor(if_else(status == "on time", 
-                                 "on time", "delayed"))) %>% 
+  mutate(delayed_or_cancelled = as.logical(
+    if_else(status == "on time", FALSE, TRUE))) %>% 
   select(-status)
 
 newark_factored %>% 
@@ -87,7 +87,7 @@ newark_factored %>%
 # Preparation for logistic regression
 
 ```{r}
-alias(final_status ~ ., data = newark_factored)
+alias(delayed_or_cancelled ~ ., data = newark_factored)
 ```
 
 Will remove wind_gust as appears to be aliased variable.
@@ -102,7 +102,7 @@ newark_factored <- newark_factored %>%
 
 ```{r}
 weather_factors <- newark_factored %>% 
-  select(final_status, wind_dir, wind_speed, visib,
+  select(delayed_or_cancelled, wind_dir, wind_speed, visib,
          tavg_c, prcp, snow)
 ```
 
@@ -113,7 +113,7 @@ weather_factors %>%
 
 ```{r}
 plane_factors <- newark_factored %>% 
-  select(final_status, type, engine)
+  select(delayed_or_cancelled, type, engine)
 ```
 
 ```{r}
@@ -123,7 +123,7 @@ plane_factors %>%
 
 ```{r}
 schedule_factors <- newark_factored %>% 
-  select(final_status, month, weekday)
+  select(delayed_or_cancelled, month, weekday)
 ```
 
 ```{r}
@@ -153,18 +153,18 @@ newark_test <- slice(newark_factored, test_index)
 
 ```{r}
 newark_train %>%
-  tabyl(final_status)
+  tabyl(delayed_or_cancelled)
 ```
 
 ```{r}
 newark_test %>%
-  tabyl(final_status)
+  tabyl(delayed_or_cancelled)
 ```
 Test and train data have good distribution of outcome. Continue with glmulti model. 
 
 ```{r}
 glmulti_search_all_mains <- glmulti(
-  final_status ~ ., 
+  delayed_or_cancelled ~ ., 
   data = newark_train,
   level = 1,               # No interactions considered, main effects only
   method = "h",            # Exhaustive approach
@@ -181,10 +181,11 @@ summary_glmulti <- summary(glmulti_search_all_mains)
 ```
 The best model from glmulti is:
 
-final_status ~ 1 + month + weekday + carrier_name + type + hour + wind_speed + visib + tavg_c + prcp + snow"  
+delayed_or_cancelled ~ 1 + month + weekday + carrier_name + type + hour + wind_speed + visib + tavg_c + prcp + snow"  
 
 ```{r}
-mod1 <- glm(final_status ~ month + weekday + carrier_name + 
+mod1 <- glm(delayed_or_cancelled ~ 
+              month + weekday + carrier_name + 
               type + hour +  wind_speed + visib + tavg_c + 
               prcp + snow,
             family = binomial(link = "logit"), data = newark_train)
@@ -193,11 +194,25 @@ mod1 <- glm(final_status ~ month + weekday + carrier_name +
 ```{r}
 roc1 <- newark_train %>%
   add_predictions(mod1, type = "response") %>%
-  roc(response = final_status, predictor = pred)
+  roc(response = delayed_or_cancelled, predictor = pred)
 ```
 ```{r}
 auc(roc1)
 ```
+```{r}
+threshold_mod1 <- 0.5
+
+mod1_0.5 <- newark_train %>%
+  add_predictions(mod1, 
+                  type = "response") %>% 
+  mutate(pred_thresh_0.5 = pred >= threshold)
+
+conf_mod1 <- mod1_0.5 %>%
+  tabyl(delayed_or_cancelled, pred_thresh_0.5) 
+
+conf_mod1
+```
+
 
 ```{r}
 label_best_auc <- str_c(
@@ -232,7 +247,7 @@ Performing glmulti including interaction to test if model is better:
 
 ```{r}
 glmulti_search_all_mains_one_pair <- glmulti(
-  final_status ~ month + weekday + carrier_name + 
+  delayed_or_cancelled ~ month + weekday + carrier_name + 
               type + hour +  wind_speed + visib + tavg_c + 
               prcp + snow,
   data = newark_train,
@@ -252,19 +267,19 @@ glmulti_search_all_mains_one_pair <- glmulti(
 Interrupted after 12 hours of running:
 
 After 63800 models:
-Best model: final_status~1+month+hour+wind_speed+visib+tavg_c+prcp+snow+tavg_c:hour+snow:prcp+month:tavg_c+month:prcp
+Best model: delayed_or_cancelled~1+month+hour+wind_speed+visib+tavg_c+prcp+snow+tavg_c:hour+snow:prcp+month:tavg_c+month:prcp
 Crit= 87583.5569166449
 Mean crit= 87625.7595997976
 
 ```{r}
-mod2 <- glm(final_status ~ month + hour + wind_speed + visib + tavg_c + prcp + snow + tavg_c:hour + snow:prcp + month:tavg_c + month:prcp,
+mod2 <- glm(delayed_or_cancelled ~ month + hour + wind_speed + visib + tavg_c + prcp + snow + tavg_c:hour + snow:prcp + month:tavg_c + month:prcp,
             family = binomial(link = "logit"), data = newark_train)
 ```
 
 ```{r}
 roc2 <- newark_train %>%
   add_predictions(mod2, type = "response") %>%
-  roc(response = final_status, predictor = pred)
+  roc(response = delayed_or_cancelled, predictor = pred)
 ```
 
 ```{r}
@@ -277,7 +292,7 @@ AUC is smaller than model without interactions. Interaction model not competitiv
 ```{r}
 roc1_test <- newark_test %>%
   add_predictions(mod1, type = "response") %>%
-  roc(response = final_status, predictor = pred)
+  roc(response = delayed_or_cancelled, predictor = pred)
 ```
 ```{r}
 auc(roc1_test)
@@ -292,7 +307,8 @@ Model seems to fit data well.
 With all weather related variables:
 
 ```{r}
-mod1_weather <- glm(final_status ~ wind_dir + wind_speed + 
+mod1_weather <- glm(delayed_or_cancelled ~ 
+                    wind_dir + wind_speed + 
                     visib + tavg_c + prcp + snow,
                     data = newark_train, 
                     family = binomial(link = "logit"))
@@ -307,7 +323,7 @@ bic(mod1_weather)
 wind_dir is not significant - remove. BIC is much higher than that of glmulti model with additional (non-weather) factors. 
 
 ```{r}
-mod2_weather <- glm(final_status ~ wind_speed + 
+mod2_weather <- glm(delayed_or_cancelled ~ wind_speed + 
                     visib + tavg_c + prcp + snow,
                     data = newark_train, 
                     family = binomial(link = "logit"))
@@ -325,7 +341,7 @@ Further testing of weather only model (mod2_weather):
 ```{r}
 roc_weather <- newark_train %>%
   add_predictions(mod2_weather, type = "response") %>%
-  roc(response = final_status, predictor = pred)
+  roc(response = delayed_or_cancelled, predictor = pred)
 ```
 ```{r}
 auc(roc_weather)
@@ -334,7 +350,7 @@ auc(roc_weather)
 ```{r}
 roc_weather_test <- newark_test %>%
   add_predictions(mod2_weather, type = "response") %>%
-  roc(response = final_status, predictor = pred)
+  roc(response = delayed_or_cancelled, predictor = pred)
 ```
 ```{r}
 auc(roc_weather_test)
@@ -380,5 +396,175 @@ roc_curve_weather + roc_curve1
 ggsave("roc_curves.png", width = 10, height = 6)
 ```
 
+## Weather factors and cancelled flights
+
+```{r}
+newark_factored_cancelled <- newark_info %>% 
+  select(-c(year, day, origin, dep_delay, carrier,
+            dep_time, dest, sched_dep_time, tailnum,
+            time_hour, date, flight, manufacturer,
+            model)) %>% 
+  mutate(across(c(month, weekday,
+         carrier_name,
+         type,
+         engines,
+         engine), 
+                ~as.factor(.x))) %>% 
+  # adding variable for cancelled, if false then delayed or on time
+  mutate(cancelled = as.logical(
+    if_else(status == "cancelled", TRUE, FALSE))) %>% 
+  select(-status)
+```
+
+Creating new test and training data:
+
+```{r}
+n_rows_cancelled <- nrow(newark_factored_cancelled)
+
+test_index_cancelled <- sample(1:n_rows, size = n_rows*0.2)
+
+newark_train_cancelled <- slice(
+  newark_factored_cancelled, -test_index)
+newark_test_cancelled <- slice(
+  newark_factored_cancelled, test_index)
+```
+
+```{r}
+newark_train_cancelled %>%
+  tabyl(cancelled)
+```
+
+```{r}
+newark_test_cancelled %>%
+  tabyl(cancelled)
+```
+Equal distribution in test and train data. 
+
+```{r}
+mod1_weather_cancelled <- glm(cancelled ~ 
+                    wind_dir + wind_speed + 
+                    visib + tavg_c + prcp + snow,
+                    data = newark_train_cancelled, 
+                    family = binomial(link = "logit"))
+
+summary(mod1_weather_cancelled)
+```
+All weather factors have significant p-values. 
+
+```{r}
+bic(mod1_weather_cancelled)
+```
+```{r}
+roc_weather_cancelled <- newark_train_cancelled %>%
+  add_predictions(mod1_weather_cancelled, 
+                  type = "response") %>%
+  roc(response = cancelled, predictor = pred)
+```
+```{r}
+auc(roc_weather_cancelled)
+```
+Confusion matrix for cancelled model
+
+```{r}
+threshold <- 0.5
+
+weather_cancelled_0.5 <- newark_train_cancelled %>%
+  add_predictions(mod1_weather_cancelled, 
+                  type = "response") %>% 
+  mutate(pred_thresh_0.5 = pred >= threshold)
+
+conf_weather_cancelled <- weather_cancelled_0.5 %>%
+  tabyl(cancelled, pred_thresh_0.5) 
+
+conf_weather_cancelled
+```
+# Removing on time and setting binary classifier to cancelled or delayed
+
+```{r}
+newark_cancelled <- newark_info %>% 
+  filter(status != "on time") %>% 
+  select(-c(year, day, origin, dep_delay, carrier,
+            dep_time, dest, sched_dep_time, tailnum,
+            time_hour, date, flight, manufacturer,
+            model)) %>% 
+  mutate(across(c(month, weekday,
+         carrier_name,
+         type,
+         engines,
+         engine), 
+                ~as.factor(.x))) %>% 
+  # adding variable for cancelled, if false then delayed only
+  mutate(cancelled = as.logical(
+    if_else(status == "cancelled", TRUE, FALSE))) %>% 
+  select(-status)
+```
+
+Creating new test and training data:
+
+```{r}
+n_rows_cancelled2 <- nrow(newark_cancelled)
+
+test_index_cancelled2 <- sample(1:n_rows, size = n_rows*0.2)
+
+train_cancelled2 <- slice(
+  newark_cancelled, -test_index)
+
+test_cancelled2 <- slice(
+  newark_cancelled, test_index)
+```
+
+```{r}
+train_cancelled2 %>%
+  tabyl(cancelled)
+```
+
+```{r}
+test_cancelled2 %>%
+  tabyl(cancelled)
+```
+Equal distribution in test and train data. 
+
+```{r}
+mod1_cancelled <- glm(cancelled ~ 
+                    wind_dir + wind_speed + 
+                    visib + tavg_c + prcp + snow,
+                    data = newark_cancelled, 
+                    family = binomial(link = "logit"))
+
+summary(mod1_cancelled)
+```
+All weather factors have significant p-values. 
+
+```{r}
+bic(mod1_cancelled)
+```
+
+```{r}
+roc_cancelled <- newark_cancelled %>%
+  add_predictions(mod1_cancelled, 
+                  type = "response") %>%
+  roc(response = cancelled, predictor = pred)
+```
+
+```{r}
+auc(roc_cancelled)
+```
+
+Confusion matrix for cancelled only model
+
+```{r}
+threshold2 <- 0.5
+
+cancelled_0.5 <- newark_cancelled %>%
+  add_predictions(mod1_cancelled, 
+                  type = "response") %>% 
+  mutate(pred_thresh_0.5 = pred >= threshold)
+
+conf_cancelled <- cancelled_0.5 %>%
+  tabyl(cancelled, pred_thresh_0.5) 
+
+conf_cancelled
+```
+Although AUC is 0.7, model is predicting more false positives than true negatives therefore model is not suitable. 
 
 

@@ -82,7 +82,7 @@ all_info_percentages <- all_info %>%
 
 cbb_palette_status <- c("#D55E00", "#F0E442", "#009E73")
 
-cbb_palette_airport <- c("#56B4E9","#E69F00", "#CC79A7")
+cbb_palette_airport <- c("#0072B2","#E69F00", "darkgreen")
 
 cbb_palette_grouped <- c("#56B4E9", "#0072B2","#D55E00", "#E69F00", "darkgreen", "#009E73") 
 
@@ -111,13 +111,13 @@ all_info %>%
                 position = position_stack(vjust = .5)) +
   scale_fill_manual(values = cbb_palette_status) +
   theme_bw() +
-  labs(title = "Flight departure status",
+  labs(title = "Flight departure status by airport",
        subtitle = "Year: 2017",
        fill = "Status",
        x = "Origin Airport",
        y = " Percent per status")
 
-ggsave("flight_departure_status.png")
+ggsave("images/airport_departure_status.png")
 ```
 
 ```{r}
@@ -177,8 +177,8 @@ timeseries_ordered %>%
               colour = status,
               group = status,
               label = percent_by_status)) +
-   geom_point(size = 2, stroke = 1.5) +
-   geom_line(size = 2) +
+   geom_point(size = 1.5, stroke = 1.5) +
+   geom_line(size = 1.5) +
    scale_colour_manual(values = cbb_palette_one) +
    theme_bw() +
    labs(title = "Cancelled & delayed flight departures by month",
@@ -205,8 +205,8 @@ timeseries_ordered %>%
               y = percent_by_status, 
               colour = status,
               group = status)) +
-   geom_point(size = 2, stroke = 1.5) +
-   geom_line(size = 2) +
+   geom_point(size = 1.5, stroke = 1.5) +
+   geom_line(size = 1.5) +
    scale_colour_manual(values = cbb_palette_two) +
    theme_bw() + 
    labs(x = "",
@@ -229,8 +229,8 @@ timeseries_ordered %>%
               y = percent_by_status, 
               colour = status,
               group = status)) +
-   geom_point(size = 2, stroke = 1.5) +
-   geom_line(size = 2) +
+   geom_point(size = 1.5, stroke = 1.5) +
+   geom_line(size = 1.5) +
    scale_colour_manual(values = cbb_palette_three) +
    theme_bw() +
   labs(x = "",
@@ -248,24 +248,40 @@ timeseries_ordered %>%
 timeseries_plot_ewr / timeseries_plot_jfk / timeseries_plot_lga
 
 ggsave("images/delays_by_month.png",
-       width = 7,
-       height = 5)
+       width = 10,
+       height = 8)
 ```
 
 ```{r}
-ontime_timeseries <- all_info %>% 
-  filter(status == "on time") %>% 
+all_flights_timeseries <- all_info_ordered %>% 
   group_by(origin, month) %>% 
   count(month)
 ```
 
 ```{r}
-(ontime_timeseries_plot <- ontime_timeseries %>% 
-    ggplot(aes(x = month, y = n, 
-               group = origin, colour = origin)) +
-    geom_point() +
-    geom_line()
+(all_flights_timeseries_plot <- all_flights_timeseries %>% 
+   ggplot(aes(x = month, y = n, 
+              group = origin, colour = origin)) +
+   geom_point(size = 1.5, stroke = 1.5) +
+   geom_line(size = 1.5) +
+   scale_colour_manual(values = cbb_palette_airport) +
+   theme_bw() +
+   labs(title = "Scheduled departures per month",
+        subtitle = "Year: 2017",
+        x = "",
+        y = "Total number of flights") +
+   theme(plot.title = element_text(
+     face = "bold", size = 20),
+     plot.subtitle = element_text(
+       face = "bold", size = 18),
+     text = element_text(size = 18),
+     axis.text.x = element_text(size = 14),
+     axis.text.y = element_text(size = 14))
 )
+
+ggsave("images/departure_count_by_month.png",
+       width = 8,
+       height = 7)
 ```
 
 ```{r}
@@ -309,12 +325,6 @@ status_percentage <- all_info %>%
 ```
 
 ```{r}
-status_percentage %>% 
-  ggplot(aes(x = origin, y = percent, fill = status)) +
-  geom_col(position = "dodge")
-```
-
-```{r}
 delays_by_time <- newark_info %>%
   group_by(hour, status) %>% 
   summarise(n = n()) %>% 
@@ -322,18 +332,9 @@ delays_by_time <- newark_info %>%
 ```
 
 ```{r}
-newark_info %>% 
-  ggplot(aes(x = hour, fill = status)) +
-  geom_bar() +
-  facet_wrap(. ~ status)
-```
-
-```{r}
-all_info %>% 
-  group_by(origin) %>% 
-  ggplot(aes(x = hour, fill = status, group = origin)) +
-  geom_bar() +
-  facet_wrap(. ~ status)
+delays_by_time %>% 
+  ggplot(aes(x = hour, y = n, fill = status)) +
+  geom_col()
 ```
 
 ```{r}
@@ -346,10 +347,117 @@ weekday_percentage <- all_info_ordered %>%
 ```{r}
 weekday_percentage %>% 
   ggplot(aes(x = weekday, y = percent, fill = status)) +
-  geom_col(position = "dodge") + 
-  facet_grid(. ~ origin)
+  geom_col()
 ```
 
+```{r}
+weekday_percentage %>% 
+  ggplot(aes(x = weekday, y = n, fill = status)) +
+  geom_col() +
+    geom_text(aes(label = str_c(round(percent, 1), "%"), 
+                group = status),
+                position = position_stack(vjust = .5)) +
+  scale_fill_manual(values = cbb_palette_status) +
+  theme_bw()
+```
+# Weather plots
 
+```{r}
+visib_round <- newark_info %>% 
+  mutate(visib_round = round(visib), .after = visib) %>% 
+  group_by(visib_round, status) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent = round(n/sum(n)*100, 2))
+```
 
+```{r}
+visib_round %>% 
+  ggplot(aes(x = visib_round, y = percent, fill = status)) + 
+  geom_col()
+```
+```{r}
+newark_info %>% 
+  distinct(snow) %>% 
+  arrange(desc(snow))
+```
+
+```{r}
+snow_status <- newark_info %>% 
+  group_by(snow, status) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent = round(n/sum(n)*100, 2))
+```
+```{r}
+snow_status %>% 
+  ggplot(aes(x = as.factor(snow), y = percent, fill = status)) + 
+  geom_col() +
+  geom_label(aes(label = str_c(round(percent, 1), "%"), 
+                 group = status),
+             position = position_stack(
+               vjust = .5),
+             show.legend = FALSE, 
+             size = 6) +
+  scale_fill_manual(values = cbb_palette_status) +
+  theme_bw() +
+    labs(title = "Flight departure status - snow depth",
+       subtitle = "Year: 2017",
+       fill = "status",
+       x = "snow depth (mm)",
+       y = "percent per status") +
+       theme(
+     text = element_text(size = 18),
+     axis.text.x = element_text(size = 14),
+     axis.text.y = element_text(size = 14))
+
+ggsave("images/departure_status_snow.png",
+       width = 8, height = 7)
+```
+
+```{r}
+avg_temp_status <- newark_info %>% 
+  mutate(tavg_grouped = case_when(
+    tavg_c > 30 ~ "> 30",
+    tavg_c > 25 ~ "25.1 - 30",
+    tavg_c > 20 ~ "20.1 - 25",
+    tavg_c > 15 ~ "15.1 - 20",
+    tavg_c > 10 ~ "10.1 - 15",
+    tavg_c > 5 ~ "5.1 - 10",
+    tavg_c > 0 ~ "0.1 - 5",
+    tavg_c > -5 ~ "-5.1 to 0",
+    tavg_c <= -5 ~ "< -5",
+  )) %>% 
+  mutate(tavg_grouped = factor(tavg_grouped, 
+                               levels = c("< -5", "-5.1 to 0", "0.1 - 5", "5.1 - 10", "10.1 - 15", "15.1 - 20", "20.1 - 25", "25.1 - 30", "> 30"))) %>% 
+  group_by(tavg_grouped, status) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent = round(n/sum(n)*100, 2))
+```
+```{r}
+avg_temp_status %>% 
+  ggplot(aes(x = tavg_grouped, y = percent, 
+             fill = status)) + 
+  geom_col() +
+  geom_label(aes(label = str_c(round(percent, 1), "%"), 
+                group = status),
+            position = position_stack(
+              vjust = .5),
+            size = 6,
+            show.legend = FALSE) +
+  scale_fill_manual(values = cbb_palette_status) +
+  theme_bw() +
+    labs(title = "Flight departure status - average temperature",
+       subtitle = "Year: 2017",
+       fill = "status",
+       x = "\ntemperature (°C)",
+       y = "percent per status") +
+       theme(
+     text = element_text(size = 18),
+     axis.text.x = element_text(size = 14, 
+                                angle = 45,
+                                hjust = 1),
+     axis.text.y = element_text(size = 14))
+
+ggsave("images/departure_status_temp.png",
+       width = 10, height = 7)
+```
 
