@@ -72,13 +72,7 @@ weather_clean <- weather %>%
   drop_na(visib) %>% 
   drop_na(wind_dir) %>% 
   drop_na(wind_speed) %>% 
-  drop_na(wind_gust) %>% 
-  #adding date variable for additional weather join
-  mutate(date = as.Date(time_hour)) %>% 
-  # joining additional weather data
-  left_join(additional_weather, by = "date") %>% 
-  # removing date column as not necessary post join
-  select(-date)
+  drop_na(wind_gust) 
 
 # Planes cleaning data -------------------------------------
 planes_clean <- planes %>% 
@@ -115,12 +109,21 @@ all_info <- flight_weather %>%
   mutate(engines = if_else(
     is.na(engines), "unknown", as.character(engines)))
 
+# Joining additional weather data to Newark dataset
+all_info_newark <- all_info %>% 
+  filter(origin == "EWR") %>% 
+#adding date variable for additional weather join
+mutate(date = as.Date(time_hour)) %>% 
+# joining additional weather data
+left_join(additional_weather, by = "date") %>% 
+# removing date column as not necessary post join
+select(-date)
+
 
 # Saving clean data scripts ------------------------------------------------
 
 all_info %>% 
   write_csv(here("clean_data/all_info_clean.csv"))
 
-all_info %>% 
-  filter(origin == "EWR") %>% 
+all_info_newark %>% 
   write_csv(here("clean_data/newark_info.csv"))

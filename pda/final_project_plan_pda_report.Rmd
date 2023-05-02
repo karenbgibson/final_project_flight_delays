@@ -1,0 +1,157 @@
+---
+title: "Final project documentation - PDA"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    df_print: paged
+    css: ../../../styles.css
+    pdf_document: default
+  word_document:
+    toc: yes
+---
+
+## Context
+
+#### Business intelligence and data-driven decision making
+
+The business will have a better understanding of the complex variety of factors that influence flight departures and cancellation.
+
+The analysis provides visualisations to help summarise and communicate the story provided by the data, as well as a regression model to assist in explaining the various factors associated with departure delays and cancellations. 
+
+The analysis allows the business to make data driven decisions based on the key findings presented and suggests further areas for exploration to help provide a better understanding of underlying factors causing flgiht delays. 
+
+
+#### Domain knowledge and the business context
+
+The analysed data come from Newark Airport, based in New Jersey, USA. Although in New Jersey, Newark services the New York City area along with JFK and LaGuardia airports (both based in New York City).
+
+The analysis looks at the domestic flight departures from Newark throughout the year 2017. The business would like to better understand the impact that weather factors have on delays and cancellations. They also look to gain a better understanding of other factors that may have an impact of scheduled flights. 
+
+The aim of this analysis is to provide key insights that will allow the business to make informed decisions as to the best way to reduce flight delays and cancellations. 
+
+
+## Data
+
+#### Internal and external data sources
+
+Briefly describe your data sources and which were internal (provided by the organisation) and external (not sourced from the organisation's data)
+
+Five datasets were provided by Newark airport:
+
+- flights: information on all domestic departure flights from Newark, JFK and LaGuardia across 2017, including scheduled time and actual departure time
+- airlines: the carrier codes and full names of airline carriers
+- planes: meta data detailing further information for models of planes
+- weather: hourly weather information for Newark, JFK and LaGuardia airports throughout 2017
+- airports: this dataset was provided by Newark and contains information on the locations, codes and timezones for airports in the USA. *This dataset was not used for the purposes of this project.*
+
+External data:
+
+- additional weather information: as the weather information provided by the airport contained a high number of missing values, further information was sourced from meteostat.com to allow a more complete picture of weather conditions throughout the year. 
+
+#### Types of data
+
+What kind of data did you work with? E.g. categorical and numerical data and their sub-types.
+
+#### Data formats
+
+What format did your data come in? E.g. all downloaded flat files (CSV) or any data from APIs, scraping etc.
+
+#### Data quality and bias
+
+Briefly describe the quality of the data and whether you have any reasons to suggest the data is biased e.g. only data from a specific demographic even though a broader demographic would be of interest to the organisation.
+
+The data provided was relevant and accurate. Most of the datasets had a very
+small amount of missing values apart from weather.csv dataset, with the majority
+of values missing.
+The data also excluded records of cancellations, arrivals and international
+flights.
+
+The data contains complete records of domestic departures in a given period of 
+time, and the nature of this prevents it from being susceptible to bias.
+
+## Ethics
+
+#### Ethical issues in data sourcing and extraction
+
+Do you have any ethical concerns regarding the sourcing and extraction of your data? 
+
+The datasets do not contain any sensitive data, or in fact any data at all on 
+individual people. It being purely a record of flights, planes and weather, I do
+not have any ethical concerns with this data. 
+
+
+#### Ethical implications of business requirements
+
+Are there any ethical implications of the business requirements?
+
+I do not believe there will be any ethical implications as the business is
+employing its own data to make improvements to their own facilities. This should
+not have an impact on any individuals both within and outwith the organisation.
+
+## Analysis
+
+#### Stages in the data analysis process
+
+What were the main stages in your data analysis process?
+
+The main stages in the data analysis process included:
+
+- Cleaning and joining of the data
+- Exploratory data analysis
+- Data preparation for model building
+- Model building for explanatory purposes
+- Conclusions and recommendations
+
+#### Tools for data analysis
+
+What were the main tools you used for your analysis?
+
+The main tool that I used was R within RStudio.
+The main packackes that I used included tidyverse, glmulti and ranger.
+
+#### Descriptive, diagnostic, predictive and prescriptive analysis
+
+My analysis falls under descriptive and diagnostic categories. This is because
+the aims were to describe and summarise the nature of departure delays in 2017, 
+as well as to help understand what factors caused these delays.
+
+Please report under which of the below categories your analysis falls **and why** (can be more than one) 
+
+::: {.emphasis}
+**Descriptive Analytics** tells you what happened in the past.
+
+**Diagnostic Analytics** helps you understand why something happened in the past.
+
+**Predictive Analytics** predicts what is most likely to happen in the future.
+
+**Prescriptive Analytics** recommends actions you can take to affect those outcomes.
+:::
+
+
+# PDA Outcomes
+
+### Working with Data (J4Y6 35)
+
+#### 1. Plan an analysis to provide business intelligence
+
+-   1.1 Business intelligence and data-driven decision making
+-   1.2 Domain knowledge and the business context
+-   1.4 Internal and external data sources
+-   1.5 Data quality
+-   1.6 Stages in the data analysis process
+-   1.7 Descriptive, diagnostic, predictive and prescriptive analysis
+-   1.9 Ethical implications of business requirements
+-   1.10 Tools for data analysis
+
+#### 2. Extract data from a variety of sources
+
+-   2.1 Tools for querying data sources
+-   2.2 Types of data (categorical and numerical data and their sub-types)
+-   2.3 Data formats
+-   2.6 Data quality including data bias
+-   2.7 Ethical issues in data sourcing and extraction
+
+#### 4. Analyse data to provide business intelligence
+
+-   4.7 Role of domain knowledge in interpreting analyses

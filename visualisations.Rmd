@@ -9,8 +9,6 @@ editor_options:
 library(tidyverse)
 library(here)
 library(lubridate)
-library(tsibbledata)
-library(tsibble)
 library(patchwork)
 ```
 
@@ -101,23 +99,33 @@ all_info %>%
   summarise(total_dep_by_origin = n()) %>% 
   mutate(percent_dep = round(
            total_dep_by_origin / 
-           sum(total_dep_by_origin) * 100)) %>% 
+           sum(total_dep_by_origin) * 100, 2)) %>% 
   ggplot(aes(x = origin, 
              y = percent_dep,
              fill = status)) +
   geom_col() +
-  geom_text(aes(label = percent_dep, 
-                group = status),
-                position = position_stack(vjust = .5)) +
+  geom_label(aes(label = str_c(percent_dep, "%"),
+                 group = status),
+             position = position_stack(vjust = .5),
+             size = 6,
+             show.legend = FALSE) +
   scale_fill_manual(values = cbb_palette_status) +
   theme_bw() +
   labs(title = "Flight departure status by airport",
        subtitle = "Year: 2017",
-       fill = "Status",
-       x = "Origin Airport",
-       y = " Percent per status")
+       fill = "status",
+       x = "origin airport",
+       y = " Ppercent per status") +
+  theme(
+     text = element_text(size = 18),
+     axis.text.x = element_text(size = 14, 
+                                angle = 45,
+                                hjust = 1),
+     axis.text.y = element_text(size = 14))
 
-ggsave("images/airport_departure_status.png")
+ggsave("images/airport_departure_status.png",
+       height = 7,
+       width = 10)
 ```
 
 ```{r}
@@ -301,28 +309,125 @@ cancelled_timeseries <- all_info_ordered %>%
 ```
 
 ```{r}
-all_info_ordered %>% 
-  filter(status == "delayed",
-         origin == "EWR") %>% 
-  ggplot(aes(x = carrier, fill = carrier_name)) +
-  geom_bar(position = "dodge")
+newark_info %>% 
+  filter(status == "delayed") %>% 
+  ggplot(aes(x = carrier_name, fill = carrier_name)) +
+  geom_bar(position = "dodge",
+           show.legend = FALSE) +
+    scale_fill_viridis_d() +
+  theme_bw() +
+  theme(
+       text = element_text(size = 18),
+     axis.text.x = element_text(size = 14, 
+                                angle = 45,
+                                hjust = 1),
+     axis.text.y = element_text(size = 14)) +
+  geom_label(stat = "count",
+             aes(label = after_stat(count)),
+             position = position_stack(vjust = .5),
+             size = 6,
+             colour = "white",
+             show.legend = FALSE) +
+  labs(title = "Delayed flights by carrier - raw count",
+       subtitle = "Year: 2017",
+       x = "",
+       y = "count")
+
 ```
 
 ```{r}
-all_info %>% 
-  group_by(origin, carrier_name) %>% 
-  summarise(total_flights = n()) %>% 
-  mutate(percent_flights = 
-           total_flights / sum(total_flights) * 100)
+percent_status_carrier <- newark_info %>%
+  group_by(carrier_name, status) %>%
+  summarize(count = n()) %>%
+  mutate(percentage_per_status = count/sum(count) * 100)
 ```
-*Highlighting as potential plot for slides**
+```{r}
+percent_status_carrier %>% 
+  filter(status == "delayed") %>% 
+  ggplot(aes(x = carrier_name, 
+             y = round(percentage_per_status, 2), 
+             fill = carrier_name)) +
+  geom_col(show.legend = FALSE) +
+  geom_label(aes(label = round(percentage_per_status, 2)),
+             position = position_stack(vjust = .5),
+             size = 6,
+             colour = "white",
+             show.legend = FALSE) +
+    scale_fill_viridis_d() +
+  theme_bw() +
+  theme(
+       text = element_text(size = 18),
+     axis.text.x = element_text(size = 14, 
+                                angle = 45,
+                                hjust = 1),
+     axis.text.y = element_text(size = 14)) +
+  labs(title = "Delayed flights by carrier - percentage",
+       subtitle = "Year: 2017",
+       x = "",
+       y = "percent")
+
+```
+```{r}
+cancel_delayed_carrier_count <- newark_info %>% 
+  filter(status != "on time") %>% 
+  ggplot(aes(x = carrier_name, fill = status)) +
+  geom_bar(show.legend = FALSE) +
+  scale_fill_manual(values = cbb_palette_status) +
+  theme_bw() +
+  theme(
+    text = element_text(size = 18),
+    axis.text.x = element_text(size = 14, 
+                               angle = 45,
+                               hjust = 1),
+    axis.text.y = element_text(size = 14)) +
+  labs(title = "Delayed & cancelled flights by carrier - raw count",
+       subtitle = "Year: 2017",
+       x = "",
+       y = "count")  +
+   scale_y_continuous(limits = c(0, 13000), 
+                      breaks = seq(0, 13000, 2500))
+
+ggsave("images/ewr_delayed_cancelled_count_by_carrier.png",
+       plot = cancel_delayed_carrier_count,
+       width = 9, height = 7)
+```
 
 ```{r}
-status_percentage <- all_info %>% 
-  group_by(origin, status) %>% 
+percent_status_carrier %>% 
+  filter(status != "on time") %>% 
+  ggplot(aes(x = carrier_name, 
+             y = round(percentage_per_status, 2), 
+             fill = status)) +
+  geom_col() +
+  geom_label(aes(label = str_c(round(percentage_per_status, 2), "%")),
+             position = position_stack(vjust = .5),
+             size = 6,
+             show.legend = FALSE) +
+    scale_fill_manual(values = cbb_palette_status) +
+  theme_bw() +
+  theme(
+       text = element_text(size = 18),
+     axis.text.x = element_text(size = 14, 
+                                angle = 45,
+                                hjust = 1),
+     axis.text.y = element_text(size = 14)) +
+  labs(title = "Delayed & cancelled flights by carrier - percentage",
+       subtitle = "Year: 2017",
+       x = "",
+       y = "percent")
+
+ggsave("images/ewr_delayed_cancelled_by_carrier_percent.png",
+       width = 10, height = 7)
+```
+
+
+```{r}
+delays_by_time <- newark_info %>%
+  group_by(hour, status) %>% 
   summarise(n = n()) %>% 
-  mutate(percent = round(n/sum(n)*100, 2))
+  mutate(percent = round(n / sum(n) * 100))
 ```
+
 
 ```{r}
 delays_by_time <- newark_info %>%
@@ -352,7 +457,7 @@ weekday_percentage %>%
 
 ```{r}
 weekday_percentage %>% 
-  ggplot(aes(x = weekday, y = n, fill = status)) +
+  ggplot(aes(x = weekday, y = percent, fill = status)) +
   geom_col() +
     geom_text(aes(label = str_c(round(percent, 1), "%"), 
                 group = status),
@@ -364,7 +469,7 @@ weekday_percentage %>%
 
 ```{r}
 visib_round <- newark_info %>% 
-  mutate(visib_round = round(visib), .after = visib) %>% 
+  mutate(visib_round = as.factor(round(visib)), .after = visib) %>% 
   group_by(visib_round, status) %>% 
   summarise(n = n()) %>% 
   mutate(percent = round(n/sum(n)*100, 2))
@@ -373,8 +478,61 @@ visib_round <- newark_info %>%
 ```{r}
 visib_round %>% 
   ggplot(aes(x = visib_round, y = percent, fill = status)) + 
-  geom_col()
+  geom_col() +
+  geom_label(aes(label = str_c(percent, "%"), 
+                 group = status),
+             position = position_stack(vjust = .5),
+             size = 5,
+             show.legend = FALSE) +
+  scale_fill_manual(values = cbb_palette_status) +
+  theme_bw() +
+      labs(title = "Flight departure status - visibility",
+       subtitle = "Year: 2017",
+       fill = "status",
+       x = "visibility (miles)",
+       y = "percent per status") +
+       theme(
+     text = element_text(size = 18),
+     axis.text.x = element_text(size = 14),
+     axis.text.y = element_text(size = 14))
+
+ggsave("images/departure_status_visib.png",
+       width = 10, height = 7)
 ```
+```{r}
+newark_info %>% 
+  distinct(wind_speed)
+```
+```{r}
+wind_speed_status <- newark_info %>% 
+  group_by(wind_speed, status) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent = round(n/sum(n)*100, 2))
+```
+```{r}
+wind_speed_status %>% 
+  ggplot(aes(x = wind_speed, 
+             y = percent, 
+             colour = status)) + 
+  geom_point() +
+  geom_line() +
+  scale_colour_manual(values = cbb_palette_status) +
+  theme_bw() +
+    labs(title = "Flight departure status - wind speed",
+       subtitle = "Year: 2017",
+       fill = "status",
+       x = "wind speed (mph)",
+       y = "percent per status") +
+       theme(
+     text = element_text(size = 18),
+     axis.text.x = element_text(size = 14),
+     axis.text.y = element_text(size = 14))
+
+ggsave("images/departure_status_wind_speed.png",
+       width = 8, height = 7)
+```
+
+
 ```{r}
 newark_info %>% 
   distinct(snow) %>% 
@@ -402,7 +560,7 @@ snow_status %>%
     labs(title = "Flight departure status - snow depth",
        subtitle = "Year: 2017",
        fill = "status",
-       x = "snow depth (mm)",
+       x = "maximum snow depth (mm)",
        y = "percent per status") +
        theme(
      text = element_text(size = 18),
@@ -459,5 +617,39 @@ avg_temp_status %>%
 
 ggsave("images/departure_status_temp.png",
        width = 10, height = 7)
+```
+```{r}
+newark_info %>% 
+  distinct(prcp)
+```
+
+
+```{r}
+precip_status <- newark_info %>% 
+  group_by(prcp, status) %>% 
+  summarise(n = n()) %>% 
+  mutate(percent = round(n/sum(n)*100, 2))
+```
+```{r}
+precip_status %>% 
+  ggplot(aes(x = prcp, 
+             y = percent, 
+             colour = status)) + 
+  geom_point() +
+  geom_line() +
+  scale_colour_manual(values = cbb_palette_status) +
+  theme_bw() +
+    labs(title = "Flight departure status - precipitation",
+       subtitle = "Year: 2017",
+       fill = "status",
+       x = "precipitation (inches)",
+       y = "percent per status") +
+       theme(
+     text = element_text(size = 18),
+     axis.text.x = element_text(size = 14),
+     axis.text.y = element_text(size = 14))
+
+ggsave("images/departure_status_precipitation.png",
+       width = 8, height = 7)
 ```
 

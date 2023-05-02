@@ -155,3 +155,21 @@ additional_weather %>%
 No NAs, adding and joining to weather_clean in cleaning script.
 
 
+## Checking what temperatures we see snow
+
+```{r}
+weather_clean %>% 
+  filter(snow != 0) %>% 
+  distinct(tavg_c) %>% 
+  arrange(tavg_c)
+
+```
+
+```{r}
+weather_clean %>% 
+  filter(snow == 0) %>% 
+  distinct(tavg_c) %>% 
+  arrange(tavg_c)
+
+```
+

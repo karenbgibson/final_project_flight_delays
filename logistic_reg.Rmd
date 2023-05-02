@@ -67,7 +67,7 @@ newark_info  %>%
 newark_factored <- newark_info %>% 
   select(-c(year, day, origin, dep_delay, carrier,
             dep_time, dest, sched_dep_time, tailnum,
-            time_hour, date, flight, manufacturer,
+            time_hour, flight, manufacturer,
             model)) %>% 
   mutate(across(c(month, weekday,
          carrier_name,
@@ -205,7 +205,7 @@ threshold_mod1 <- 0.5
 mod1_0.5 <- newark_train %>%
   add_predictions(mod1, 
                   type = "response") %>% 
-  mutate(pred_thresh_0.5 = pred >= threshold)
+  mutate(pred_thresh_0.5 = pred >= threshold_mod1)
 
 conf_mod1 <- mod1_0.5 %>%
   tabyl(delayed_or_cancelled, pred_thresh_0.5) 
@@ -225,7 +225,7 @@ label_best_auc <- str_c(
    coord_fixed() + 
     labs(title = "Best model: combined factors",
          subtitle = "month, weekday, carrier, type, 
-hour, wind speed visibility, average 
+hour, wind speed, visibility, average 
 temperature, precipitation, snow",
 x = "\n1-specificity (true negative rate)",
 y = "sensitivity (true positive rate)\n"
@@ -241,6 +241,9 @@ y = "sensitivity (true positive rate)\n"
     text = element_text(size = 16),
     axis.text.x = element_text(size = 14),
     axis.text.y = element_text(size = 14))
+
+ggsave("images/proc_best_model.png",
+       height = 7, width = 7)
 ```
 
 Performing glmulti including interaction to test if model is better:
@@ -565,6 +568,5 @@ conf_cancelled <- cancelled_0.5 %>%
 
 conf_cancelled
 ```
-Although AUC is 0.7, model is predicting more false positives than true negatives therefore model is not suitable. 
-
+Although AUC is 0.7, model is predicting more false positives than true negatives therefore model is not suitable. Data is too skewed to be suitable for logistic regression. 
 
