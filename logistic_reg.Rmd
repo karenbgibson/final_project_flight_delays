@@ -227,7 +227,7 @@ label_best_auc <- str_c(
          subtitle = "month, weekday, carrier, type, 
 hour, wind speed, visibility, average 
 temperature, precipitation, snow",
-x = "\n1-specificity (true negative rate)",
+x = "\n1-specificity (false positive rate)",
 y = "sensitivity (true positive rate)\n"
     ) +
    annotate("text", x = 0.70, y = 0.35, 
@@ -377,7 +377,7 @@ label_weather_auc <- str_c(
     labs(title = "Model: weather related factors",
          subtitle = "wind speed, visibility, average 
 temperature, precipitation & snow\n",
-x = "\n1-specificity (true negative rate)",
+x = "\n1-specificity (false positive rate)",
 y = "sensitivity (true positive rate)\n"
     ) +
     annotate("text", x = 0.70, y = 0.35, 
