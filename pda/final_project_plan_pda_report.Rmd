@@ -100,6 +100,8 @@ Data does include information on airline carriers and their performance can be a
 
 The main stages of the data analysis process were:
 
+- reviewing and understanding the project brief and the business questions being asked, including some pre-planning to increase domain knowledge
+- creating a plan for approaching and breaking down the task at hand 
 - cleaning data and creating R script
 - exploratory data analysis
 - ggplot2 visualisations created
