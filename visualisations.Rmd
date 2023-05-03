@@ -104,10 +104,10 @@ all_info %>%
              y = percent_dep,
              fill = status)) +
   geom_col() +
-  geom_label(aes(label = str_c(percent_dep, "%"),
+  geom_label(aes(label = percent_dep,
                  group = status),
              position = position_stack(vjust = .5),
-             size = 6,
+             size = 10,
              show.legend = FALSE) +
   scale_fill_manual(values = cbb_palette_status) +
   theme_bw() +
@@ -117,8 +117,8 @@ all_info %>%
        x = "origin airport",
        y = " Ppercent per status") +
   theme(
-     text = element_text(size = 18),
-     axis.text.x = element_text(size = 14, 
+     text = element_text(size = 20),
+     axis.text.x = element_text(size = 20, 
                                 angle = 45,
                                 hjust = 1),
      axis.text.y = element_text(size = 14))
@@ -202,7 +202,7 @@ timeseries_ordered %>%
        face = "bold", size = 18),
      text = element_text(size = 16),
      axis.text.x = element_text(size = 14),
-     axis.text.y = element_text(size = 8))
+     axis.text.y = element_text(size = 14))
 )
 ```
 ```{r}
@@ -225,7 +225,7 @@ timeseries_ordered %>%
       theme(
      text = element_text(size = 16),
      axis.text.x = element_text(size = 14),
-     axis.text.y = element_text(size = 8))
+     axis.text.y = element_text(size = 14))
 )
 ```
 
@@ -249,7 +249,7 @@ timeseries_ordered %>%
        theme(
      text = element_text(size = 16),
      axis.text.x = element_text(size = 14),
-     axis.text.y = element_text(size = 8))
+     axis.text.y = element_text(size = 14))
 )
 ```
 ```{r}
@@ -283,8 +283,8 @@ all_flights_timeseries <- all_info_ordered %>%
      plot.subtitle = element_text(
        face = "bold", size = 18),
      text = element_text(size = 18),
-     axis.text.x = element_text(size = 14),
-     axis.text.y = element_text(size = 14))
+     axis.text.x = element_text(size = 16),
+     axis.text.y = element_text(size = 18))
 )
 
 ggsave("images/departure_count_by_month.png",
@@ -368,7 +368,7 @@ percent_status_carrier %>%
 
 ```
 ```{r}
-cancel_delayed_carrier_count <- newark_info %>% 
+newark_info %>% 
   filter(status != "on time") %>% 
   ggplot(aes(x = carrier_name, fill = status)) +
   geom_bar(show.legend = FALSE) +
@@ -379,7 +379,7 @@ cancel_delayed_carrier_count <- newark_info %>%
     axis.text.x = element_text(size = 14, 
                                angle = 45,
                                hjust = 1),
-    axis.text.y = element_text(size = 14)) +
+    axis.text.y = element_text(size = 18)) +
   labs(title = "Delayed & cancelled flights by carrier - raw count",
        subtitle = "Year: 2017",
        x = "",
@@ -399,7 +399,7 @@ percent_status_carrier %>%
              y = round(percentage_per_status, 2), 
              fill = status)) +
   geom_col() +
-  geom_label(aes(label = str_c(round(percentage_per_status, 2), "%")),
+  geom_label(aes(label = round(percentage_per_status, 2)),
              position = position_stack(vjust = .5),
              size = 6,
              show.legend = FALSE) +
@@ -410,11 +410,11 @@ percent_status_carrier %>%
      axis.text.x = element_text(size = 14, 
                                 angle = 45,
                                 hjust = 1),
-     axis.text.y = element_text(size = 14)) +
+     axis.text.y = element_text(size = 18)) +
   labs(title = "Delayed & cancelled flights by carrier - percentage",
        subtitle = "Year: 2017",
        x = "",
-       y = "percent")
+       y = "percent per status")
 
 ggsave("images/ewr_delayed_cancelled_by_carrier_percent.png",
        width = 10, height = 7)
@@ -479,10 +479,10 @@ visib_round <- newark_info %>%
 visib_round %>% 
   ggplot(aes(x = visib_round, y = percent, fill = status)) + 
   geom_col() +
-  geom_label(aes(label = str_c(percent, "%"), 
+  geom_label(aes(label = str_c(percent), 
                  group = status),
              position = position_stack(vjust = .5),
-             size = 5,
+             size = 6,
              show.legend = FALSE) +
   scale_fill_manual(values = cbb_palette_status) +
   theme_bw() +
@@ -493,8 +493,8 @@ visib_round %>%
        y = "percent per status") +
        theme(
      text = element_text(size = 18),
-     axis.text.x = element_text(size = 14),
-     axis.text.y = element_text(size = 14))
+     axis.text.x = element_text(size = 18),
+     axis.text.y = element_text(size = 18))
 
 ggsave("images/departure_status_visib.png",
        width = 10, height = 7)
@@ -595,7 +595,7 @@ avg_temp_status %>%
   ggplot(aes(x = tavg_grouped, y = percent, 
              fill = status)) + 
   geom_col() +
-  geom_label(aes(label = str_c(round(percent, 1), "%"), 
+  geom_label(aes(label = round(percent, 1), 
                 group = status),
             position = position_stack(
               vjust = .5),
@@ -610,10 +610,10 @@ avg_temp_status %>%
        y = "percent per status") +
        theme(
      text = element_text(size = 18),
-     axis.text.x = element_text(size = 14, 
+     axis.text.x = element_text(size = 18, 
                                 angle = 45,
                                 hjust = 1),
-     axis.text.y = element_text(size = 14))
+     axis.text.y = element_text(size = 18))
 
 ggsave("images/departure_status_temp.png",
        width = 10, height = 7)
