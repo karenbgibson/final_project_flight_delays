@@ -37,15 +37,15 @@ The aim of this analysis is to provide key insights that will allow the business
 
 Five datasets were provided by Newark airport:
 
-- flights: information on all domestic departure flights from Newark, JFK and LaGuardia across 2017, including scheduled and actual departure times
-- airlines: the carrier codes and full names of airline carriers
-- planes: meta data detailing further information for models of planes
-- weather: hourly weather information for Newark, JFK and LaGuardia airports throughout 2017
+- flights (30,3748 observations of 19 variables): information on all domestic departure flights from Newark, JFK and LaGuardia across 2017, including scheduled and actual departure times 
+- airlines (12 observations on 2 variables): the carrier codes and full names of airline carriers
+- planes (3521 observations of 9 variables): meta data detailing further information for models of planes 
+- weather (26,201 observations of 15 variables): hourly weather information for Newark, JFK and LaGuardia airports throughout 2017
 - airports: this dataset was provided by Newark and contains information on the locations, codes and timezones for airports in the USA. *The airports dataset was provided but not used for the purposes of the analysis.*
 
 External data:
 
-- additional weather information: as the weather information provided by the airport contained a high number of missing values, further information was sourced from meteostat.com to allow a more complete picture of weather conditions at Newark throughout the year. 
+- additional weather information (365 observations of 4 variables): as the weather information provided by the airport contained a high number of missing values, further information was sourced from meteostat.com to allow a more complete picture of weather conditions at Newark throughout the year. 
 Source: https://meteostat.net/en/station/72502?t=2017-01-01/2017-12-31
 
 Data verification:
@@ -55,6 +55,7 @@ Data verification:
 #### Types of data
 
 The data types used:
+
   - Numerical, e.g. day, dep_delay, wind_dir
   - Oridinal, e.g month, weekday, visibility
   - Date time, e.g. time_hour, date
@@ -80,8 +81,6 @@ The data contained information on domestic departures only, information on all d
 
 #### Ethical issues in data sourcing and extraction
 
-Do you have any ethical concerns regarding the sourcing and extraction of your data? 
-
 As noted, all data is factual and does not contain any opinion or personal identifying information.
 
 There are no foreseen ethical issues with this data.
@@ -100,22 +99,21 @@ Data does include information on airline carriers and their performance can be a
 
 The main stages of the data analysis process were:
 
-- reviewing and understanding the project brief and the business questions being asked, including some pre-planning to increase domain knowledge
-- creating a plan for approaching and breaking down the task at hand 
-- cleaning data and creating R script
-- exploratory data analysis
-- ggplot2 visualisations created
-- further data cleaning for glmulti model building
-- model building and analysis of findings
-- presentation preparation, including findings, conclusion and recommendations
+  - reviewing and understanding the project brief and the business questions being asked, including some pre-planning to increase domain knowledge
+  - creating a plan for approaching and breaking down the task at hand 
+  - cleaning data and creating R script
+  - exploratory data analysis
+  - ggplot2 visualisations created
+  - further data cleaning for glmulti model building
+  - model building and analysis of findings
+  - presentation preparation, including findings, conclusion and recommendations
 
 #### Tools for data analysis
-
-What were the main tools you used for your analysis?
 
 All analysis was written in R code using RStudio.
 
 A variety of R packages were used, including:
+
   - tidyverse
   - janitor
   - lubridate
